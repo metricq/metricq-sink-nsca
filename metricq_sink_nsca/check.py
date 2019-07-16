@@ -75,7 +75,7 @@ class Check:
         except KeyError:
             raise ValueError(f'Metric "{metric}" not known to check')
 
-    async def update_timeout_check(self, metric: str, timestamp: Timestamp) -> None:
+    async def bump_timeout_check(self, metric: str, timestamp: Timestamp) -> None:
         try:
             self._timeout_checks[metric].bump(timestamp)
         except KeyError:

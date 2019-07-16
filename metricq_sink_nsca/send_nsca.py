@@ -58,12 +58,12 @@ class NSCAReport:
         return f"NSCAReport(message={self.message!r}, status={self.status!r})"
 
 
-class SendNSCA:
+class NSCAClient:
     def __init__(self, process: asyncio.subprocess.Process):
         self._process = process
 
     @staticmethod
-    async def spawn(host_addr, config_file: str = None) -> "SendNSCA":
+    async def spawn(host_addr, config_file: str = None) -> "NSCAClient":
         args = list()
 
         def add_arg(args, switch, argument):
@@ -76,7 +76,7 @@ class SendNSCA:
             "send_nsca", "-H", host_addr, *args, stdin=asyncio.subprocess.PIPE
         )
 
-        return SendNSCA(process)
+        return NSCAClient(process)
 
     def send_report(self, report: NSCAReport):
         logger.debug(f"Sending NSCA report: {report!r}")
