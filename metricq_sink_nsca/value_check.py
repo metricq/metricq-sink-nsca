@@ -60,9 +60,9 @@ class ValueCheck:
         critical_below: float = -math.inf,
         critical_above: float = math.inf,
     ):
-        if not (critical_below < warning_below < warning_above < critical_above):
+        if not (critical_below <= warning_below < warning_above <= critical_above):
             raise ValueError(
-                f"Critical range must be contained in warning range: "
+                f"Warning range must be at least as strict as critical range: "
                 f"warning_range=({warning_below}, {warning_above}), "
                 f"critical_range=({critical_below}, {critical_above})"
             )
