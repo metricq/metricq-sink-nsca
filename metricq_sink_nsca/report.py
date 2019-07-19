@@ -88,13 +88,14 @@ class ReporterSink(metricq.DurableSink):
             # extract ranges for warnable and critical values from the config,
             # each key is optional
             value_constraints = {
-                c: config.get(c)
+                c: config[c]
                 for c in (
                     "warning_below",
                     "warning_above",
                     "critical_below",
                     "critical_above",
                 )
+                if c in config
             }
 
             # timout is optional too

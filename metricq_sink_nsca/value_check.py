@@ -24,14 +24,10 @@ import math
 from typing import Optional
 
 
-def _default_to(arg, default):
-    return default if arg is None else arg
-
-
 class AbnormalRange:
-    def __init__(self, low: Optional[float] = None, high: Optional[float] = None):
-        self.low = _default_to(low, -math.inf)
-        self.high = _default_to(high, math.inf)
+    def __init__(self, low: float = -math.inf, high: float = math.inf):
+        self.low = low
+        self.high = high
 
         if self.low > self.high:
             raise ValueError(f"{self:r}: Boundaries must not cross")
@@ -59,16 +55,16 @@ class AbnormalRange:
 class ValueCheck:
     def __init__(
         self,
-        warning_below: Optional[float],
-        warning_above: Optional[float],
-        critical_below: Optional[float],
-        critical_above: Optional[float],
+        warning_below: float = -math.inf,
+        warning_above: float = math.inf,
+        critical_below: float = -math.inf,
+        critical_above: float = math.inf,
     ):
         if not (critical_below < warning_below < warning_above < critical_above):
             raise ValueError(
                 f"Critical range must be contained in warning range: "
-                f"warning_range={warning_range!r}, "
-                f"critical_range={critical_range!r}"
+                f"warning_range=({warning_below}, {warning_above}), "
+                f"critical_range=({critical_below}, {critical_above})"
             )
 
         self._warning_range = AbnormalRange(low=warning_below, high=warning_above)
