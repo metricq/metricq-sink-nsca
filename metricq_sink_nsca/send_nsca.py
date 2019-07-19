@@ -84,3 +84,6 @@ class NSCAClient:
 
     async def flush(self):
         await self._process.stdin.drain()
+
+    def terminate(self):
+        self._process.terminate()

@@ -125,6 +125,9 @@ class ReporterSink(metricq.DurableSink):
         self._reporting_host = reporting_host
 
         # asynchronously spawn an NSCA client, used to deliver check results
+        if self._nsca_client is not None:
+            self._nsca_client.terminate()
+            self._nsca_client = None
         self._nsca_client = await NSCAClient.spawn(
             nsca_host, config_file="send_nsca.cfg"
         )
@@ -137,8 +140,8 @@ class ReporterSink(metricq.DurableSink):
         await self._check_values(metric, data_chunk.value)
 
         # "bump" all timeout checks with the last timestamp for which we
-        # received values, i.e. re-set the asynchronous timers that would fire
-        # if we did not receive value for to long.
+        # received values, i.e. reset the asynchronous timers that would
+        # fire if we do not receive value for too long.
         last_timestamp = Timestamp(sum(data_chunk.time_delta))
         await self._bump_timeout_checks(metric, last_timestamp)
 
