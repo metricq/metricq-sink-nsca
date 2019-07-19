@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "metricq-nsca-sink (passive check result reporter) configuration",
+  "description": "Configuration describing which metrics to monitor and provide results for, base on their availability and value range",
+  "type": "object",
+  "properties": {
+    "reporting_host": {
+      "type": "string",
+      "description": "Name of the host for which check results are reported, as configured in Nagios/Centreon"
+    },
+    "nsca_host": {
+      "type": "string",
+      "description": "Address of the NSCA daemon to which check results are sent (see `-H` flag of `send_nsca`)"
+    },
+    "checks": {
+      "type": "object",
+      "description": "Configuration for each value/timeout check, by Nagios/Centreon service name",
+      "patternProperties": {
+        "^[^\\t]$": {
+          "type": "object",
+          "description": "Passive check configuration",
+          "properties": {
+            "metrics": {
+              "type": "array",
+              "description": "List of metrics that should be monitored",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "description": "Name of a MetricQ metric"
+              }
+            },
+            "warning_below": {
+              "type": "number",
+              "description": "Send a check result of severity \"WARNING\" if the values sent by any monitored metric go below this threshold"
+            },
+            "warning_above": {
+              "type": "number",
+              "description": "Send a check result of severity \"WARNING\" if the values sent by any monitored metric go above this threshold"
+            },
+            "critical_below": {
+              "type": "number",
+              "description": "Send a check result of severity \"CRITICAL\" if the values sent by any monitored metric go below this threshold"
+            },
+            "critical_above": {
+              "type": "number",
+              "description": "Send a check result of severity \"CRITICAL\" if the values sent by any monitored metric go above this threshold"
+            },
+            "timeout": {
+              "type": "string",
+              "description": "Send check result of severity \"WARNING\" if no values arrive apart more than the specified period",
+              "pattern": "^\\s*([+-]?\\d*[.,]?\\d+)\\s*([^\\d]*)\\s*$"
+            }
+          },
+          "required": [
+            "metrics"
+          ]
+        }
+      }
+    }
+  }
+}
