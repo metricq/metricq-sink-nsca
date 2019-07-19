@@ -52,13 +52,26 @@ class ReporterSink(metricq.DurableSink):
         # these are configured after connecting, see _configure().
         self._reporting_host: str = None
         self._nsca_client: NSCAClient = None
-        self._checks: Dict[str, Check] = None
+        self._checks: Dict[str, Check] = dict()
 
         super().__init__(*args, **kwargs)
 
-    def _init_checks(self, check_config) -> None:
+    def _clear_checks(self):
+        if not self._checks:
+            return
+
+        logger.info(f"Cancelling running checks...")
+        check: Check
+        for name, check in self._checks.items():
+            logger.info(f'Cancelling check "{name}"')
+            check.cancel_timeout_checks()
+
         self._checks = dict()
+
+    def _init_checks(self, check_config) -> None:
+        self._clear_checks()
         for check, config in check_config.items():
+            logger.info(f'Setting up new check "{check}"')
             metrics = config.get("metrics")
             if metrics is None:
                 raise ValueError(f'Check "{check}" does not contain any metrics')
@@ -94,10 +107,6 @@ class ReporterSink(metricq.DurableSink):
                 on_timeout=self._send_timeout_report,
             )
 
-        logger.info(click.style("Running checks:", fg="blue"))
-        for name, check in self._checks.items():
-            logger.info(click.style(f"* {name}", fg="blue"))
-
     async def connect(self):
         await super().connect()
         metrics = set.union(*(set(check.metrics()) for check in self._checks.values()))
@@ -107,8 +116,11 @@ class ReporterSink(metricq.DurableSink):
         return await super().subscribe(metrics=list(metrics), **kwargs)
 
     @metricq.rpc_handler("config")
-    async def _configure(self, checks, reporting_host, nsca_host, **kwargs) -> None:
-        logger.info(f"Sending checks from {reporting_host} to {nsca_host}")
+    async def _configure(self, checks, reporting_host, nsca_host, **_kwargs) -> None:
+        logger.info(
+            f"Received configuration: "
+            f"sending checks from {reporting_host} to NSCA host {nsca_host}"
+        )
 
         self._reporting_host = reporting_host
 
@@ -133,7 +145,7 @@ class ReporterSink(metricq.DurableSink):
         # flush all reports to the NSCA host
         await self._nsca_client.flush()
 
-    async def _on_data(self, _metric, _value):
+    async def on_data(self, _metric, _timestamp, _value):
         """Functionality implemented in _on_data_chunk
         """
 
@@ -161,9 +173,11 @@ class ReporterSink(metricq.DurableSink):
     ) -> None:
         check: Check
         await asyncio.gather(
-            await check.bump_timeout_check(metric, last_timestamp)
-            for check in self._checks.values()
-            if metric in check
+            *tuple(
+                check.bump_timeout_check(metric, last_timestamp)
+                for check in self._checks.values()
+                if metric in check
+            )
         )
 
     async def _send_timeout_report(

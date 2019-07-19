@@ -81,6 +81,10 @@ class Check:
         except KeyError:
             raise ValueError(f'Metric "{metric}" not known to check')
 
+    def cancel_timeout_checks(self) -> None:
+        for check in self._timeout_checks.values():
+            check.cancel()
+
     def metrics(self) -> Iterable[str]:
         return self._metrics
 

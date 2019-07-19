@@ -21,7 +21,7 @@
 import click
 
 import asyncio
-from asyncio import Future, Event, TimeoutError
+from asyncio import Future, Event, TimeoutError, CancelledError
 
 from metricq.types import Timedelta, Timestamp
 from datetime import timedelta
@@ -45,7 +45,13 @@ class TimeoutCheck:
 
         self._last_timestamp: Optional[Timestamp] = None
         self._new_timestamp_event: Event = Event()
-        asyncio.create_task(self._run())
+        self._task: asyncio.Task = asyncio.create_task(self._run())
+
+    def cancel(self):
+        logger.debug(
+            f"Cancelling task for TimeoutCheck (cancelled: {self._task.cancelled()})"
+        )
+        self._task.cancel()
 
     def bump(self, last_timestamp: Timestamp):
         self._last_timestamp = last_timestamp
@@ -80,8 +86,10 @@ class TimeoutCheck:
                     else:
                         wait_duration = deadline - now
                         await self._run_timeout_callback_after(wait_duration)
-        except:
-            logger.exception("Unexpected error inside TimeoutCheck callback")
+        except CancelledError:
+            logger.debug("TimeoutCheck cancelled!")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(f"Unexpected error inside TimeoutCheck callback: {e}")
 
     async def _run_timeout_callback_after(self, timeout: Timedelta):
         try:

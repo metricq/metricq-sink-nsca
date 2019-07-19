@@ -18,4 +18,6 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
+# pylint: disable=logging-fstring-interpolation,logging-format-interpolation
+
 from .report import report_cmd
