@@ -30,5 +30,5 @@ setup(
       [console_scripts]
       metricq-sink-nsca=metricq_sink_nsca:main
       """,
-    install_requires=["click", "click-log", "metricq"],
+    install_requires=["click", "click-log", "metricq==0.0"],
 )
