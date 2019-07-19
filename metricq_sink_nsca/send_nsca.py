@@ -21,7 +21,6 @@
 import os
 import asyncio
 from enum import Enum
-from typing import Iterable
 
 from metricq.logging import get_logger
 

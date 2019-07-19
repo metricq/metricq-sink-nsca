@@ -18,13 +18,10 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-import click
-
 import asyncio
-from asyncio import Future, Event, TimeoutError, CancelledError
+from asyncio import Event, CancelledError
 
 from metricq.types import Timedelta, Timestamp
-from datetime import timedelta
 from typing import Optional, Coroutine
 
 from .logging import get_logger
@@ -96,6 +93,6 @@ class TimeoutCheck:
             logger.debug(f"TimeoutCheck: waiting for {timeout}...")
             await asyncio.wait_for(self._new_timestamp_event.wait(), timeout=timeout.s)
             self._new_timestamp_event.clear()
-        except TimeoutError:
+        except asyncio.TimeoutError:
             logger.debug("TimeoutCheck fired!")
             self._run_timeout_callback()

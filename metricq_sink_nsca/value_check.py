@@ -21,8 +21,6 @@
 from .send_nsca import Status
 
 import math
-
-from collections import defaultdict
 from typing import Optional
 
 

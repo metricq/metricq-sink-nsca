@@ -22,7 +22,7 @@ from typing import Iterable, Dict, Optional, Coroutine, Set
 
 from metricq.types import Timedelta, Timestamp
 
-from .value_check import ValueCheck, AbnormalRange
+from .value_check import ValueCheck
 from .timeout_check import TimeoutCheck
 from .send_nsca import Status
 
