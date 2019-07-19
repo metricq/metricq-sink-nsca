@@ -19,29 +19,16 @@
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
 from .send_nsca import NSCAReport, Status, NSCAClient
-
 from .check import Check
-
-import logging
-from typing import Dict, Iterable, Optional
-
-import click
-import click_log
+from .logging import get_logger
 
 import asyncio
+from typing import Dict, Iterable, Optional
 
 import metricq
 from metricq import Timedelta, Timestamp
 
-from .logging import get_logger
-
 logger = get_logger()
-
-click_log.basic_config(logger)
-logger.setLevel("INFO")
-logger.handlers[0].formatter = logging.Formatter(
-    fmt="[%(asctime)s] [%(levelname)-5s] [%(name)-20s] %(message)s"
-)
 
 
 class ReporterSink(metricq.DurableSink):
@@ -208,12 +195,3 @@ class ReporterSink(metricq.DurableSink):
         )
         self._nsca_client.send_report(report)
         await self._nsca_client.flush()
-
-
-@click.command()
-@click.option("--metricq-server", "-s", default="amqp://localhost/")
-@click.option("--token", "-t", default="sink-nsca")
-@click_log.simple_verbosity_option(logger)
-def report_cmd(metricq_server, token):
-    reporter = ReporterSink(management_url=metricq_server, token=token)
-    reporter.run()

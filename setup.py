@@ -23,12 +23,12 @@ setup(
     name="metricq_sink_nsca",
     version="0.1",
     author="TU Dresden",
-    python_requires=">=3.5",
+    python_requires=">=3.7",
     packages=["metricq_sink_nsca"],
     scripts=[],
     entry_points="""
       [console_scripts]
-      metricq-sink-nsca=metricq_sink_nsca:report_cmd
+      metricq-sink-nsca=metricq_sink_nsca:main
       """,
     install_requires=["click", "click-log", "metricq"],
 )

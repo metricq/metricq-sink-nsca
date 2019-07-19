@@ -20,4 +20,4 @@
 
 # pylint: disable=logging-fstring-interpolation,logging-format-interpolation
 
-from .report import report_cmd
+from .main import main
