@@ -76,14 +76,18 @@ class Check:
             raise ValueError(f'Metric "{metric}" not known to check')
 
     async def bump_timeout_check(self, metric: str, timestamp: Timestamp) -> None:
+        if self._timeout_checks is None:
+            return  # no timeout checks configured for this check
+
         try:
             self._timeout_checks[metric].bump(timestamp)
         except KeyError:
             raise ValueError(f'Metric "{metric}" not known to check')
 
     def cancel_timeout_checks(self) -> None:
-        for check in self._timeout_checks.values():
-            check.cancel()
+        if self._timeout_checks is not None:
+            for check in self._timeout_checks.values():
+                check.cancel()
 
     def metrics(self) -> Iterable[str]:
         return self._metrics
