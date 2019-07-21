@@ -75,7 +75,7 @@ class ValueCheck:
         old_status, self._last_status = self._last_status, new_status
 
         if old_status is None:
-            return False
+            return True
         else:
             return old_status != new_status
 
