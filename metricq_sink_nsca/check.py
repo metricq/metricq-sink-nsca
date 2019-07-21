@@ -32,19 +32,21 @@ class Check:
         self,
         name: str,
         metrics: Iterable[str],
-        value_constraints: Dict[str, float],
+        value_constraints: Optional[Dict[str, float]],
         timeout: Optional[str] = None,
         on_timeout: Optional[Coroutine] = None,
     ):
         self._name = name
         self._metrics: Set[str] = set(metrics)
 
-        self._value_checks: Dict[str, ValueCheck] = {
-            metric: ValueCheck(**value_constraints) for metric in self._metrics
-        }
-
+        self._value_checks: Optional[Dict[str, ValueCheck]] = None
         self._timeout_checks: Optional[Dict[str, TimeoutCheck]] = None
         self._on_timeout_callback: Optional[Coroutine] = None
+
+        if value_constraints is not None:
+            self._value_checks: Dict[str, ValueCheck] = {
+                metric: ValueCheck(**value_constraints) for metric in self._metrics
+            }
 
         if timeout is not None:
             if on_timeout is None:
@@ -58,6 +60,12 @@ class Check:
                 for metric in self._metrics
             }
 
+    def has_value_checks(self) -> bool:
+        return self._value_checks is not None
+
+    def has_timeout_checks(self) -> bool:
+        return self._timeout_checks is not None
+
     def _get_on_timeout_callback(self, metric) -> Coroutine:
         async def on_timeout(timeout, last_timestamp):
             await self._on_timeout_callback(
@@ -70,22 +78,23 @@ class Check:
         return on_timeout
 
     def check_value(self, metric: str, value: float) -> (Status, bool):
-        try:
-            return self._value_checks[metric].get_status(value)
-        except KeyError:
-            raise ValueError(f'Metric "{metric}" not known to check')
+        if self.has_value_checks():
+            try:
+                return self._value_checks[metric].get_status(value)
+            except KeyError:
+                raise ValueError(f'Metric "{metric}" not known to check')
+        else:
+            return (Status.OK, False)
 
     async def bump_timeout_check(self, metric: str, timestamp: Timestamp) -> None:
-        if self._timeout_checks is None:
-            return  # no timeout checks configured for this check
-
-        try:
-            self._timeout_checks[metric].bump(timestamp)
-        except KeyError:
-            raise ValueError(f'Metric "{metric}" not known to check')
+        if self.has_timeout_checks():
+            try:
+                self._timeout_checks[metric].bump(timestamp)
+            except KeyError:
+                raise ValueError(f'Metric "{metric}" not known to check')
 
     def cancel_timeout_checks(self) -> None:
-        if self._timeout_checks is not None:
+        if self.has_timeout_checks():
             for check in self._timeout_checks.values():
                 check.cancel()
 
