@@ -20,7 +20,9 @@
 
 import os
 import asyncio
+from asyncio import subprocess
 from enum import Enum
+from typing import Optional
 
 from metricq.logging import get_logger
 
@@ -58,11 +60,11 @@ class NSCAReport:
 
 
 class NSCAClient:
-    def __init__(self, process: asyncio.subprocess.Process):
+    def __init__(self, process: subprocess.Process):
         self._process = process
 
     @staticmethod
-    async def spawn(host_addr, config_file: str = None) -> "NSCAClient":
+    async def spawn(host_addr, config_file: Optional[str] = None) -> "NSCAClient":
         args = list()
 
         def add_arg(args, switch, argument):
@@ -82,6 +84,7 @@ class NSCAClient:
         self._process.stdin.write(str(report).encode("utf-8"))
 
     async def flush(self):
+        self._process.stdin.write(b"\x17")
         await self._process.stdin.drain()
 
     def terminate(self):
