@@ -104,7 +104,14 @@ class ReporterSink(metricq.DurableSink):
         return await super().subscribe(metrics=list(metrics), **kwargs)
 
     @metricq.rpc_handler("config")
-    async def _configure(self, checks, reporting_host, nsca_host, **_kwargs) -> None:
+    async def _configure(
+        self,
+        checks,
+        reporting_host,
+        nsca_host,
+        nsca_client_config_file: Optional[str] = None,
+        **_kwargs,
+    ) -> None:
         logger.info(
             f"Received configuration: "
             f"sending checks from {reporting_host} to NSCA host {nsca_host}"
@@ -117,7 +124,7 @@ class ReporterSink(metricq.DurableSink):
             self._nsca_client.terminate()
             self._nsca_client = None
         self._nsca_client = await NSCAClient.spawn(
-            nsca_host, config_file="send_nsca.cfg"
+            nsca_host, config_file=nsca_client_config_file
         )
 
         self._init_checks(checks)
