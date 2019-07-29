@@ -98,6 +98,7 @@ class ReporterSink(metricq.DurableSink):
     async def connect(self):
         await super().connect()
         metrics = set.union(*(set(check.metrics()) for check in self._checks.values()))
+        logger.info(f"Subscribing to {len(metrics)} metric(s)...")
         await self.subscribe(metrics=metrics)
 
     async def subscribe(self, metrics: Iterable[str], **kwargs) -> None:
@@ -151,17 +152,12 @@ class ReporterSink(metricq.DurableSink):
         reports = list()
         check: Check
         for name, check in self._checks.items():
-            if check.has_value_checks() and metric in check:
-                for value in values:
-                    status, changed = check.check_value(metric, value)
-                    if changed:
-                        report = NSCAReport(
-                            f'Metric "{metric}": {value:.12g}',
-                            status=status,
-                            host=self._reporting_host,
-                            service=name,
-                        )
-                        reports.append(report)
+            for (status, message) in check.check_values(metric, values):
+                reports.append(
+                    NSCAReport(
+                        message, status=status, host=self._reporting_host, service=name
+                    )
+                )
 
         for report in reports:
             self._nsca_client.send_report(report)
@@ -169,12 +165,10 @@ class ReporterSink(metricq.DurableSink):
     async def _bump_timeout_checks(
         self, metric: str, last_timestamp: Timestamp
     ) -> None:
-        check: Check
         await asyncio.gather(
             *tuple(
                 check.bump_timeout_check(metric, last_timestamp)
                 for check in self._checks.values()
-                if check.has_timeout_checks() and metric in check
             )
         )
 
