@@ -43,6 +43,7 @@ class TimeoutCheck:
         self._last_timestamp: Optional[Timestamp] = None
         self._new_timestamp_event: Event = Event()
         self._task: asyncio.Task = asyncio.create_task(self._run())
+        self._throttle = False
 
     def cancel(self):
         logger.debug(
@@ -52,6 +53,7 @@ class TimeoutCheck:
 
     def bump(self, last_timestamp: Timestamp):
         self._last_timestamp = last_timestamp
+        self._throttle = False
         self._new_timestamp_event.set()
 
     def _run_timeout_callback(self):
@@ -64,8 +66,11 @@ class TimeoutCheck:
     async def _run(self):
         try:
             while True:
-                if self._last_timestamp is None:
-                    # We never got bumped, so wait until timeout from now on
+                if self._last_timestamp is None or self._throttle:
+                    # We either never got bumped or we just missed a deadline
+                    # and ran the timeout callback.  Wait for the entire
+                    # timeout duration in either case, so that we don't spam
+                    # the timeout callback.
                     timeout = self._timeout + self._grace_period
                     await self._run_timeout_callback_after(timeout)
                 else:
@@ -73,13 +78,14 @@ class TimeoutCheck:
                     # based on the last time at which we got bumped.
                     # We assume our local clock and the clock source for the
                     # last timestamp to be synchronized within the grace period.
-                    # If the deadline is in the past, immedeately run the
+                    # If the deadline is in the past, immediately run the
                     # timeout callback.
                     now = Timestamp.now()
                     deadline = self._last_timestamp + self._timeout + self._grace_period
                     if deadline <= now:
                         logger.debug("Deadline in the past!")
                         self._run_timeout_callback()
+                        self._throttle = True
                     else:
                         wait_duration = deadline - now
                         await self._run_timeout_callback_after(wait_duration)
