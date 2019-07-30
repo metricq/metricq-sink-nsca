@@ -64,17 +64,20 @@ class NSCAClient:
         self._process = process
 
     @staticmethod
-    async def spawn(host_addr, config_file: Optional[str] = None) -> "NSCAClient":
+    async def spawn(
+        host_addr, executable: str = "send_nsca", config_file: Optional[str] = None
+    ) -> "NSCAClient":
         args = list()
 
         def add_arg(args, switch, argument):
             if argument is not None:
                 args.extend([switch, argument])
 
+        add_arg(args, "-H", host_addr)
         add_arg(args, "-c", config_file)
 
         process = await asyncio.create_subprocess_exec(
-            "send_nsca", "-H", host_addr, *args, stdin=asyncio.subprocess.PIPE
+            executable, *args, stdin=asyncio.subprocess.PIPE
         )
 
         return NSCAClient(process)

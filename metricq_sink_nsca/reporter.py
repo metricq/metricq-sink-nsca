@@ -110,6 +110,7 @@ class ReporterSink(metricq.DurableSink):
         checks,
         reporting_host,
         nsca_host,
+        nsca_client_executable: str = "/usr/sbin/send_nsca",
         nsca_client_config_file: Optional[str] = None,
         **_kwargs,
     ) -> None:
@@ -125,7 +126,9 @@ class ReporterSink(metricq.DurableSink):
             self._nsca_client.terminate()
             self._nsca_client = None
         self._nsca_client = await NSCAClient.spawn(
-            nsca_host, config_file=nsca_client_config_file
+            nsca_host,
+            executable=nsca_client_executable,
+            config_file=nsca_client_config_file,
         )
 
         self._init_checks(checks)

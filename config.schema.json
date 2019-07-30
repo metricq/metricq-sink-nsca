@@ -12,6 +12,10 @@
       "type": "string",
       "description": "Address of the NSCA daemon to which check results are sent (see `-H` flag of `send_nsca`)"
     },
+    "nsca_client_executable": {
+      "type": "string",
+      "description": "Path to NSCA client executable (defaults to /usr/sbin/send_nsca)"
+    },
     "nsca_client_config_file": {
       "type": "string",
       "description": "Path to configuration file to use for NSCA client (see `-c` flag of `send_nsca`)"
