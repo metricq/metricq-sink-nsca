@@ -152,12 +152,16 @@ class ReporterSink(metricq.DurableSink):
         reports = list()
         check: Check
         for name, check in self._checks.items():
-            for (status, message) in check.check_values(metric, values):
-                reports.append(
-                    NSCAReport(
-                        message, status=status, host=self._reporting_host, service=name
+            if metric in check:
+                for (status, message) in check.check_values(metric, values):
+                    reports.append(
+                        NSCAReport(
+                            message,
+                            status=status,
+                            host=self._reporting_host,
+                            service=name,
+                        )
                     )
-                )
 
         for report in reports:
             self._nsca_client.send_report(report)
@@ -169,6 +173,7 @@ class ReporterSink(metricq.DurableSink):
             *tuple(
                 check.bump_timeout_check(metric, last_timestamp)
                 for check in self._checks.values()
+                if metric in check
             )
         )
 
