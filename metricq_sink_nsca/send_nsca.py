@@ -76,6 +76,8 @@ class NSCAClient:
         add_arg(args, "-H", host_addr)
         add_arg(args, "-c", config_file)
 
+        logger.info("Running NSCA client {} with arguments {}", executable, args)
+
         process = await asyncio.create_subprocess_exec(
             executable, *args, stdin=asyncio.subprocess.PIPE
         )
