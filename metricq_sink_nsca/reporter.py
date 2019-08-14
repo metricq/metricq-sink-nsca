@@ -194,11 +194,11 @@ class ReporterSink(metricq.DurableSink):
             date_str = last_timestamp.datetime.astimezone()
             message += f"received last value at {date_str}"
 
-        logger.warning(f'Check "{check_name}": {message}')
+        logger.warning(f'Check "{check_name} is CRITICAL": {message}')
 
         report = NSCAReport(
             message,
-            status=Status.WARNING,
+            status=Status.CRITICAL,
             host=self._reporting_host,
             service=check_name,
         )
