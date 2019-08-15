@@ -18,7 +18,6 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import asyncio
 from asyncio import subprocess
 from enum import Enum
@@ -36,16 +35,13 @@ class Status(Enum):
 
 
 class NSCAReport:
-    def __init__(
-        self, message, status=Status.OK, host=None, service=None, field_delimiter="\t"
-    ):
+    def __init__(self, message, host, status=Status.OK, service=None):
         self.message = str(message)
         self.status = Status(status)
         self.service = service
-        self.host = host if host is not None else os.uname().nodename
-        self.delimiter = field_delimiter
+        self.host = host
 
-    def __str__(self):
+    def serialize(self, field_delimiter="\t") -> bytes:
         if self.service is None:
             # Host check result
             fields = (self.host, self.status.value, self.message)
@@ -53,19 +49,32 @@ class NSCAReport:
             # Service check result
             fields = (self.host, self.service, self.status.value, self.message)
 
-        return self.delimiter.join(str(f) for f in fields) + "\n"
+        return (field_delimiter.join(str(f) for f in fields) + "\n").encode("utf-8")
 
     def __repr__(self):
-        return f"NSCAReport(message={self.message!r}, status={self.status!r})"
+        return (
+            f"NSCAReport("
+            f"host={self.host!r}, "
+            f"service={self.service!r}, "
+            f"status={self.status!r}"
+            f"message={self.message!r}, "
+            f")"
+        )
 
 
 class NSCAClient:
-    def __init__(self, process: subprocess.Process):
+    def __init__(
+        self, process: subprocess.Process, field_delimiter: Optional[str] = None
+    ):
         self._process = process
+        self._field_delimiter = field_delimiter or "\t"
 
     @staticmethod
     async def spawn(
-        host_addr, executable: str = "send_nsca", config_file: Optional[str] = None
+        host_addr,
+        executable: str = "send_nsca",
+        config_file: Optional[str] = None,
+        field_delimiter: Optional[str] = None,
     ) -> "NSCAClient":
         args = list()
 
@@ -75,6 +84,7 @@ class NSCAClient:
 
         add_arg(args, "-H", host_addr)
         add_arg(args, "-c", config_file)
+        add_arg(args, "-d", field_delimiter)
 
         logger.info("Running NSCA client {} with arguments {}", executable, args)
 
@@ -82,11 +92,13 @@ class NSCAClient:
             executable, *args, stdin=asyncio.subprocess.PIPE
         )
 
-        return NSCAClient(process)
+        return NSCAClient(process=process, field_delimiter=field_delimiter)
 
     def send_report(self, report: NSCAReport):
         logger.debug(f"Sending NSCA report: {report!r}")
-        self._process.stdin.write(str(report).encode("utf-8"))
+        self._process.stdin.write(
+            report.serialize(field_delimiter=self._field_delimiter)
+        )
 
     async def flush(self):
         self._process.stdin.write(b"\x17")
