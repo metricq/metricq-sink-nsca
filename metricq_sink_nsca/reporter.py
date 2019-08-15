@@ -24,6 +24,7 @@ from .logging import get_logger
 
 import asyncio
 from typing import Dict, Iterable, Optional
+from socket import gethostname
 
 import metricq
 from metricq import Timedelta, Timestamp
@@ -108,10 +109,10 @@ class ReporterSink(metricq.DurableSink):
     async def _configure(
         self,
         checks,
-        reporting_host,
         nsca_host,
         nsca_client_executable: str = "/usr/sbin/send_nsca",
         nsca_client_config_file: Optional[str] = None,
+        reporting_host: str = gethostname(),
         **_kwargs,
     ) -> None:
         logger.info(

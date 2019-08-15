@@ -26,9 +26,10 @@ startup, which is a JSON dict in the form of
    }
 
 Here, ``"reporting_host"`` is the name of the host for which the check results
-are reported as configured in Nagios/Centreon;  ``"nsca_host"`` is the address
-of the host running the NSCA daemon (see ``-H``-flag of ``send_nsca``).  The
-dictionary ``"checks"`` specifies service checks by their name:
+are reported as configured in Nagios/Centreon (defaults to the output of
+``hostname(1)``);  ``"nsca_host"`` is the address of the host running the NSCA
+daemon (see ``-H``-flag of ``send_nsca``).  The dictionary ``"checks"``
+specifies service checks by their name:
 
 .. code-block:: json
 

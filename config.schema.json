@@ -6,7 +6,7 @@
   "properties": {
     "reporting_host": {
       "type": "string",
-      "description": "Name of the host for which check results are reported, as configured in Nagios/Centreon"
+      "description": "Name of the host for which check results are reported, as configured in Nagios/Centreon (defaults to the output of hostname(1))"
     },
     "nsca_host": {
       "type": "string",
@@ -66,5 +66,6 @@
         }
       }
     }
-  }
+  },
+  "required": ["nsca_host", "checks"]
 }
