@@ -20,4 +20,4 @@ logger.handlers[0].formatter = logging.Formatter(
 @click_log.simple_verbosity_option(logger)
 def main(metricq_server, token):
     reporter = ReporterSink(management_url=metricq_server, token=token)
-    reporter.run()
+    reporter.run(cancel_on_exception=True)
