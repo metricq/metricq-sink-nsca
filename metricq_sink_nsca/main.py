@@ -13,8 +13,10 @@ logger.handlers[0].formatter = logging.Formatter(
     fmt="[%(asctime)s] [%(levelname)-5s] [%(name)-20s] %(message)s"
 )
 
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
-@click.command()
+
+@click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("--metricq-server", "-s", default="amqp://localhost/")
 @click.option("--token", "-t", default="sink-nsca")
 @click_log.simple_verbosity_option(logger)
