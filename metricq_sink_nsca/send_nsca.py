@@ -56,8 +56,8 @@ class NSCAReport:
             f"NSCAReport("
             f"host={self.host!r}, "
             f"service={self.service!r}, "
-            f"status={self.status!r}"
-            f"message={self.message!r}, "
+            f"status={self.status!r}, "
+            f"message={self.message!r}"
             f")"
         )
 
@@ -95,7 +95,7 @@ class NSCAClient:
         return NSCAClient(process=process, field_delimiter=field_delimiter)
 
     def send_report(self, report: NSCAReport):
-        logger.debug(f"Sending NSCA report: {report!r}")
+        logger.debug("Sending NSCA report: {!r}", report)
         self._process.stdin.write(
             report.serialize(field_delimiter=self._field_delimiter)
         )
