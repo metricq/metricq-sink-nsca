@@ -21,5 +21,5 @@
 import metricq
 
 
-def get_logger():
-    return metricq.logging.get_logger("metricq-sink-nsca")
+def get_logger(name=None):
+    return metricq.logging.get_logger(name)

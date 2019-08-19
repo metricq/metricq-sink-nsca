@@ -29,7 +29,7 @@ from socket import gethostname
 import metricq
 from metricq import Timedelta, Timestamp
 
-logger = get_logger()
+logger = get_logger(__name__)
 
 
 class ReporterSink(metricq.DurableSink):

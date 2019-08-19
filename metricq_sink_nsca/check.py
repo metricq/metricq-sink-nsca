@@ -27,7 +27,7 @@ from .timeout_check import TimeoutCheck
 from .send_nsca import Status
 from .logging import get_logger
 
-logger = get_logger()
+logger = get_logger(__name__)
 
 _StatusCollection = Dict[str, float]
 
