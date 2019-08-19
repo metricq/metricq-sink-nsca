@@ -21,7 +21,7 @@
 from typing import Iterable, Dict, Optional, Coroutine, Set, NamedTuple, Tuple
 
 from metricq.types import Timedelta, Timestamp
-from aionsca import State as Status
+from aionsca import State
 
 from .value_check import ValueCheck
 from .timeout_check import TimeoutCheck
@@ -29,22 +29,22 @@ from .logging import get_logger
 
 logger = get_logger(__name__)
 
-_StatusCollection = Dict[str, float]
+_StateCollection = Dict[str, float]
 
 
-class _StatusCacheCategories(NamedTuple):
-    ok: _StatusCollection = dict()
-    warning: _StatusCollection = dict()
-    critical: _StatusCollection = dict()
+class _StateCacheCategories(NamedTuple):
+    ok: _StateCollection = dict()
+    warning: _StateCollection = dict()
+    critical: _StateCollection = dict()
 
 
-class StatusCache:
+class StateCache:
     def __init__(self, *metrics: str):
         self._unknown: Set[str] = set(*metrics)
-        self._categories: _StatusCacheCategories = _StatusCacheCategories()
+        self._categories: _StateCacheCategories = _StateCacheCategories()
 
-    def update_status(self, metric: str, value: float, status: Status):
-        """Update the cached status of a metric
+    def update_state(self, metric: str, value: float, state: State):
+        """Update the cached state of a metric
         """
         was_known = any(
             category.pop(metric, None) is not None for category in self._categories
@@ -55,46 +55,46 @@ class StatusCache:
 
         assert was_known or was_unknown
 
-        if status == Status.OK:
+        if state == State.OK:
             self._categories.ok[metric] = value
-        elif status == Status.WARNING:
+        elif state == State.WARNING:
             self._categories.warning[metric] = value
-        elif status == Status.CRITICAL:
+        elif state == State.CRITICAL:
             self._categories.critical[metric] = value
         else:
-            raise ValueError(f"Not a status: {status!r}")
+            raise ValueError(f"Not a state: {state!r}")
 
     def __repr__(self):
-        return f"StatusCache(unknown={self._unknown}, categories={self._categories})"
+        return f"StateCache(unknown={self._unknown}, categories={self._categories})"
 
-    def overall_status(self) -> Optional[Status]:
-        """Return the most severe status of any cached metric
+    def overall_state(self) -> Optional[State]:
+        """Return the most severe state of any cached metric
 
-        If any of the contained metrics are critical, return Status.CRITICAL,
-        if any are warning, return Status.WARNING etc.
+        If any of the contained metrics are critical, return State.CRITICAL,
+        if any are warning, return State.WARNING etc.
 
         Should all metrics be in an unknown state, return None. This happens if
-        they were never updated via update_status().
+        they were never updated via update_state().
         """
         if self._categories.critical:
-            return Status.CRITICAL
+            return State.CRITICAL
         elif self._categories.warning:
-            return Status.WARNING
+            return State.WARNING
         elif self._categories.ok:
-            return Status.OK
+            return State.OK
         else:
             return None
 
     @property
-    def ok(self) -> _StatusCollection:
+    def ok(self) -> _StateCollection:
         return self._categories.ok
 
     @property
-    def warning(self) -> _StatusCollection:
+    def warning(self) -> _StateCollection:
         return self._categories.warning
 
     @property
-    def critical(self) -> _StatusCollection:
+    def critical(self) -> _StateCollection:
         return self._categories.critical
 
 
@@ -122,7 +122,7 @@ class Check:
         self._name = name
         self._metrics: Set[str] = set(metrics)
 
-        self._status_cache = StatusCache(self._metrics)
+        self._state_cache = StateCache(self._metrics)
 
         self._value_checks: Optional[Dict[str, ValueCheck]] = None
         self._timeout_checks: Optional[Dict[str, TimeoutCheck]] = None
@@ -164,7 +164,7 @@ class Check:
 
     def check_values(
         self, metric: str, values: Iterable[float]
-    ) -> Iterable[Tuple[Status, str]]:
+    ) -> Iterable[Tuple[State, str]]:
         if not self._has_value_checks():
             return list()
 
@@ -174,18 +174,18 @@ class Check:
 
         reports = list()
         for value in values:
-            (status, changed) = check.get_status(value)
+            (state, changed) = check.get_state(value)
             if changed:
-                self._status_cache.update_status(metric, value, status)
-                status = self._status_cache.overall_status()
-                assert status is not None
+                self._state_cache.update_state(metric, value, state)
+                state = self._state_cache.overall_state()
+                assert state is not None
 
-                status_message: str
-                if status == Status.OK:
-                    status_message = "All metrics OK"
+                state_message: str
+                if state == State.OK:
+                    state_message = "All metrics OK"
                 else:
-                    critical = self._status_cache.critical
-                    warning = self._status_cache.warning
+                    critical = self._state_cache.critical
+                    warning = self._state_cache.warning
 
                     header_line = list()
                     details = list()
@@ -205,8 +205,8 @@ class Check:
                     header_line = ", ".join(header_line)
                     details = "\\n".join(details)
 
-                    status_message = f"{header_line}\\n{details}"
-                reports.append((status, status_message))
+                    state_message = f"{header_line}\\n{details}"
+                reports.append((state, state_message))
 
         return reports
 

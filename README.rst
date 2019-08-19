@@ -50,7 +50,7 @@ of metric names that this check provides results for.  The remaining keys are
 optional:
 
 ``{warning,critical}_{above,below}`` (number)
-   Send a check result of status *WARNING* (resp. *CRITICAL*) to the NSCA host
+   Send a check result of state *WARNING* (resp. *CRITICAL*) to the NSCA host
    if values of the monitored metrics exceed (resp. fall below) the numerical
    threshold set by ``<value>``.  Note that the warning range must be properly
    contained within the critical range, i.e.::
@@ -58,7 +58,7 @@ optional:
       critical_below < warning_below < warning_above < critical_above
 
 ``timeout`` (string)
-   Send a check result of status *CRITICAL* to the NSCA host if consecutive
+   Send a check result of state *CRITICAL* to the NSCA host if consecutive
    values arrive apart more than the specified duration.  The duration is
    of the form of  ``<value><unit>``, e.g. ``30s`` or ``5min``.
 

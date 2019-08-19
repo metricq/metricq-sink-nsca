@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-from aionsca import State as Status
+from aionsca import State
 
 import math
 from typing import Optional
@@ -69,27 +69,28 @@ class ValueCheck:
 
         self._warning_range = AbnormalRange(low=warning_below, high=warning_above)
         self._critical_range = AbnormalRange(low=critical_below, high=critical_above)
-        self._last_status: Optional[Status] = None
+        self._last_state: Optional[State] = None
 
-    def _status_changed(self, new_status) -> bool:
-        old_status, self._last_status = self._last_status, new_status
+    def _state_changed(self, new_state) -> bool:
+        old_state, self._last_state = self._last_state, new_state
 
-        if old_status is None:
+        if old_state is None:
             return True
         else:
-            return old_status != new_status
+            return old_state != new_state
 
-    def _get_status(self, value: float) -> Status:
+    def _get_state(self, value: float) -> State:
+
         if value in self._critical_range:
-            return Status.CRITICAL
+            return State.CRITICAL
         elif value in self._warning_range:
-            return Status.WARNING
+            return State.WARNING
         else:
-            return Status.OK
+            return State.OK
 
-    def get_status(self, value: float) -> (Status, bool):
-        new_status = self._get_status(value)
-        return (new_status, self._status_changed(new_status))
+    def get_state(self, value: float) -> (State, bool):
+        new_state = self._get_state(value)
+        return (new_state, self._state_changed(new_state))
 
     def __repr__(self):
         return (
