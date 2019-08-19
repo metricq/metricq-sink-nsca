@@ -71,6 +71,14 @@ class ValueCheck:
         self._critical_range = AbnormalRange(low=critical_below, high=critical_above)
         self._last_state: Optional[State] = None
 
+    @property
+    def warning_range(self):
+        return self._warning_range
+
+    @property
+    def critical_range(self):
+        return self._critical_range
+
     def _state_changed(self, new_state) -> bool:
         old_state, self._last_state = self._last_state, new_state
 

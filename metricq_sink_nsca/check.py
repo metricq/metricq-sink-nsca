@@ -22,6 +22,7 @@ from typing import Iterable, Dict, Optional, Coroutine, Set, NamedTuple, Tuple
 
 from metricq.types import Timedelta, Timestamp
 from aionsca import State
+from aionsca.report import MAX_LENGTH_MESSAGE
 
 from .value_check import ValueCheck
 from .timeout_check import TimeoutCheck
@@ -180,9 +181,9 @@ class Check:
                 state = self._state_cache.overall_state()
                 assert state is not None
 
-                state_message: str
+                message: str
                 if state == State.OK:
-                    state_message = "All metrics OK"
+                    message = "All metrics OK"
                 else:
                     critical = self._state_cache.critical
                     warning = self._state_cache.warning
@@ -192,21 +193,27 @@ class Check:
 
                     if len(critical):
                         header_line.append(f"{len(critical)} metric(s) CRITICAL")
+                        details.append(f"CRITICAL ({check.critical_range}):")
                         for metric, critical_value in critical.items():
-                            details.append(
-                                f"CRITICAL: {metric} = {critical_value:.12g}"
-                            )
+                            details.append(f"\t{metric}={critical_value:.12g}")
 
                     if len(warning):
                         header_line.append(f"{len(warning)} metric(s) WARNING")
+                        details.append(f"WARNING ({check.warning_range}):")
                         for metric, warn_value in warning.items():
-                            details.append(f"WARNING: {metric} = {warn_value:.12g}")
+                            details.append(f"\t{metric}={warn_value:.12g}")
 
                     header_line = ", ".join(header_line)
-                    details = "\\n".join(details)
+                    details = "\n".join(details)
+                    message = f"{header_line}\n{details}"
 
-                    state_message = f"{header_line}\\n{details}"
-                reports.append((state, state_message))
+                    if len(message) > MAX_LENGTH_MESSAGE:
+                        logger.warning(f"Details exceed maximum message length!\n")
+                        SNIP = "\n...\n<SOME VALUES OMITTED>"
+                        message = message[: MAX_LENGTH_MESSAGE - len(SNIP)]
+                        message += SNIP
+
+                reports.append((state, message))
 
         return reports
 
