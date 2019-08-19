@@ -21,7 +21,7 @@
 from aionsca import State
 
 import math
-from typing import Optional
+from typing import Optional, Iterable
 
 
 class AbnormalRange:
@@ -59,6 +59,7 @@ class ValueCheck:
         warning_above: float = math.inf,
         critical_below: float = -math.inf,
         critical_above: float = math.inf,
+        ignore: Iterable[float] = set(),
     ):
         if not (critical_below <= warning_below < warning_above <= critical_above):
             raise ValueError(
@@ -69,6 +70,7 @@ class ValueCheck:
 
         self._warning_range = AbnormalRange(low=warning_below, high=warning_above)
         self._critical_range = AbnormalRange(low=critical_below, high=critical_above)
+        self._ignore = set(ignore)
         self._last_state: Optional[State] = None
 
     @property
@@ -88,6 +90,8 @@ class ValueCheck:
             return old_state != new_state
 
     def _get_state(self, value: float) -> State:
+        if value in self._ignore:
+            return State.OK
 
         if value in self._critical_range:
             return State.CRITICAL
@@ -104,6 +108,7 @@ class ValueCheck:
         return (
             f"ValueCheck("
             f"warning_range={self._warning_range}, "
-            f"critical_range={self._critical_range}"
+            f"critical_range={self._critical_range}, "
+            f"ignore={self._ignore!r}"
             f")"
         )

@@ -42,6 +42,7 @@ specifies service checks by their name:
       "warning_below": <value>,
       "critical_above": <value>,
       "critical_below": <value>,
+      "ignore": [<value>, ...],
       "timeout": <duration>
    }
 
@@ -56,6 +57,11 @@ optional:
    contained within the critical range, i.e.::
 
       critical_below < warning_below < warning_above < critical_above
+
+``ignore`` (list of numbers)
+    Ignore these values when checking for abnormal values, even if they fall
+    within the warning resp. critical range.  This is useful for faulty sources
+    which spuriously report erroneous values.
 
 ``timeout`` (string)
    Send a check result of state *CRITICAL* to the NSCA host if consecutive

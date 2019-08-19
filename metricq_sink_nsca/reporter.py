@@ -110,6 +110,7 @@ class ReporterSink(metricq.DurableSink):
                     "warning_above",
                     "critical_below",
                     "critical_above",
+                    "ignore",
                 )
                 if c in config
             }

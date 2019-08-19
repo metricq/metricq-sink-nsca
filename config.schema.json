@@ -63,6 +63,14 @@
               "type": "number",
               "description": "Send a check result of severity \"CRITICAL\" if the values sent by any monitored metric go above this threshold"
             },
+            "ignore": {
+              "type": "array",
+              "description": "A list of values considered \"OK\", ignored by critical_* and warning_* checks",
+              "uniqueItems": true,
+              "items": {
+                "type": "number"
+              }
+            },
             "timeout": {
               "type": "string",
               "description": "Send check result of severity \"WARNING\" if no values arrive apart more than the specified period",
