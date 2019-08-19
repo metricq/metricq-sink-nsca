@@ -21,10 +21,10 @@
 from typing import Iterable, Dict, Optional, Coroutine, Set, NamedTuple, Tuple
 
 from metricq.types import Timedelta, Timestamp
+from aionsca import State as Status
 
 from .value_check import ValueCheck
 from .timeout_check import TimeoutCheck
-from .send_nsca import Status
 from .logging import get_logger
 
 logger = get_logger(__name__)

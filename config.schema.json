@@ -8,17 +8,26 @@
       "type": "string",
       "description": "Name of the host for which check results are reported, as configured in Nagios/Centreon (defaults to the output of hostname(1))"
     },
-    "nsca_host": {
-      "type": "string",
-      "description": "Address of the NSCA daemon to which check results are sent (see `-H` flag of `send_nsca`)"
-    },
-    "nsca_client_executable": {
-      "type": "string",
-      "description": "Path to NSCA client executable (defaults to /usr/sbin/send_nsca)"
-    },
-    "nsca_client_config_file": {
-      "type": "string",
-      "description": "Path to configuration file to use for NSCA client (see `-c` flag of `send_nsca`)"
+    "nsca": {
+      "type": "object",
+      "description": "NSCA host settings",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Address of the NSCA daemon to which check results are sent (see `-H` flag of `send_nsca`)"
+        },
+        "password": {
+          "type": "string",
+          "description": "Encryption password for packages sent to NSCA host"
+        },
+        "encryption_method": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "description": "Encryption method used for packages sent to NSCA host\nEither a numeral (as in send_nsca.cfg) or a literal encryption scheme name"
+        }
+      }
     },
     "checks": {
       "type": "object",
@@ -67,5 +76,7 @@
       }
     }
   },
-  "required": ["nsca_host", "checks"]
+  "required": [
+    "checks"
+  ]
 }

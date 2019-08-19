@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-from .send_nsca import Status
+from aionsca import State as Status
 
 import math
 from typing import Optional

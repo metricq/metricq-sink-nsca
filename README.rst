@@ -58,7 +58,7 @@ optional:
       critical_below < warning_below < warning_above < critical_above
 
 ``timeout`` (string)
-   Send a check result of status *WARNING* to the NSCA host if consecutive
+   Send a check result of status *CRITICAL* to the NSCA host if consecutive
    values arrive apart more than the specified duration.  The duration is
    of the form of  ``<value><unit>``, e.g. ``30s`` or ``5min``.
 
