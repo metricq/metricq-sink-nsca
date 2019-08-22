@@ -202,15 +202,14 @@ class ReporterSink(metricq.DurableSink):
         message = f'Metric "{metric}" timed out after {timeout}: '
         if last_timestamp is None:
             message += "never received any values"
+            state = aionsca.State.UNKNOWN
         else:
             date_str = last_timestamp.datetime.astimezone()
             message += f"received last value at {date_str}"
+            state = aionsca.State.CRITICAL
 
-        logger.warning(f'Check "{check_name} is CRITICAL": {message}')
+        logger.warning(f'Check "{check_name} is {state}": {message}')
 
         await self._nsca_client.send_report(
-            host=self._reporting_host,
-            service=check_name,
-            state=aionsca.State.CRITICAL,
-            message=message,
+            host=self._reporting_host, service=check_name, state=state, message=message
         )

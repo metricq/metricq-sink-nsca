@@ -68,14 +68,14 @@ class StateCache:
     def __repr__(self):
         return f"StateCache(unknown={self._unknown}, categories={self._categories})"
 
-    def overall_state(self) -> Optional[State]:
+    def overall_state(self) -> State:
         """Return the most severe state of any cached metric
 
         If any of the contained metrics are critical, return State.CRITICAL,
         if any are warning, return State.WARNING etc.
 
-        Should all metrics be in an unknown state, return None. This happens if
-        they were never updated via update_state().
+        Should all metrics be in an unknown state, return State.UNKNOWN. This
+        happens if they were never updated via update_state().
         """
         if self._categories.critical:
             return State.CRITICAL
@@ -84,7 +84,7 @@ class StateCache:
         elif self._categories.ok:
             return State.OK
         else:
-            return None
+            return State.UNKNOWN
 
     @property
     def ok(self) -> _StateCollection:
@@ -179,7 +179,6 @@ class Check:
             if changed:
                 self._state_cache.update_state(metric, value, state)
                 state = self._state_cache.overall_state()
-                assert state is not None
 
                 message: str
                 if state == State.OK:
