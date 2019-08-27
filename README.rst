@@ -20,16 +20,19 @@ startup, which is a JSON dict in the form of
 .. code-block:: json
 
    {
-      "reporting_host": <address>,
-      "nsca_host": <address>,
+      "reporting_host": "<address>",
+      "nsca": { ... },
       "checks": { ... }
    }
 
 Here, ``"reporting_host"`` is the name of the host for which the check results
 are reported as configured in Nagios/Centreon (defaults to the output of
-``hostname(1)``);  ``"nsca_host"`` is the address of the host running the NSCA
-daemon (see ``-H``-flag of ``send_nsca``).  The dictionary ``"checks"``
-specifies service checks by their name:
+``hostname(1)``).
+``"nsca"`` contains the NSCA host configuration: ``nsca.host`` is the address
+of the host running the NSCA daemon (see ``-H``-flag of ``send_nsca``),
+``nsca.password`` and ``nsca.encryption_method`` are strings as used in
+``send_nsca``-configuration format.
+The dictionary ``"checks"`` specifies service checks by their name:
 
 .. code-block:: json
 
@@ -74,13 +77,18 @@ Examples
 
 For Nagios-host ``hvac-monitoring`` and service *Temperature*, check that
 temperature readings in Room *A* and *B* do not exceed certain thresholds, and
-that they do not arrive more than 5 minutes apart:
+that they arrive *at least* every 5 minutes.  Also, a temperature reading of
+0.0℃ should be ignored.
 
 .. code-block:: json
 
    {
       "reporting_host": "hvac-monitoring",
-      "nsca_host": "192.0.2.1",
+      "nsca": {
+        "host": "192.0.2.1",
+        "password": "hunter2",
+        "encryption_method": "blowfish"
+      },
       "checks": {
          "Temperature": {
             "metrics": [
@@ -89,6 +97,7 @@ that they do not arrive more than 5 minutes apart:
             ],
             "warning_above": 40.0,
             "critical_above": 50.0,
+            "ignore": [0.0],
             "timeout": "5min"
          }
       }
