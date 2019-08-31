@@ -18,10 +18,10 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-from .send_nsca import Status
+from aionsca import State
 
 import math
-from typing import Optional
+from typing import Optional, Iterable
 
 
 class AbnormalRange:
@@ -59,6 +59,7 @@ class ValueCheck:
         warning_above: float = math.inf,
         critical_below: float = -math.inf,
         critical_above: float = math.inf,
+        ignore: Iterable[float] = set(),
     ):
         if not (critical_below <= warning_below < warning_above <= critical_above):
             raise ValueError(
@@ -69,32 +70,32 @@ class ValueCheck:
 
         self._warning_range = AbnormalRange(low=warning_below, high=warning_above)
         self._critical_range = AbnormalRange(low=critical_below, high=critical_above)
-        self._last_status: Optional[Status] = None
+        self._ignore = set(ignore)
 
-    def _status_changed(self, new_status) -> bool:
-        old_status, self._last_status = self._last_status, new_status
+    @property
+    def warning_range(self):
+        return self._warning_range
 
-        if old_status is None:
-            return True
-        else:
-            return old_status != new_status
+    @property
+    def critical_range(self):
+        return self._critical_range
 
-    def _get_status(self, value: float) -> Status:
+    def get_state(self, value: float) -> State:
+        if value in self._ignore:
+            return State.OK
+
         if value in self._critical_range:
-            return Status.CRITICAL
+            return State.CRITICAL
         elif value in self._warning_range:
-            return Status.WARNING
+            return State.WARNING
         else:
-            return Status.OK
-
-    def get_status(self, value: float) -> (Status, bool):
-        new_status = self._get_status(value)
-        return (new_status, self._status_changed(new_status))
+            return State.OK
 
     def __repr__(self):
         return (
             f"ValueCheck("
             f"warning_range={self._warning_range}, "
-            f"critical_range={self._critical_range}"
+            f"critical_range={self._critical_range}, "
+            f"ignore={self._ignore!r}"
             f")"
         )
