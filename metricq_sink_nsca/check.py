@@ -160,10 +160,10 @@ class Check:
         return on_timeout
 
     def format_overall_state(self) -> (State, str):
-        state = self._state_cache.overall_state()
+        overall_state = self._state_cache.overall_state()
 
         message: str
-        if state == State.OK:
+        if overall_state == State.OK:
             message = "All metrics OK"
         else:
             header_line = list()
@@ -188,7 +188,7 @@ class Check:
             message = message[: MAX_LENGTH_MESSAGE - len(SNIP)]
             message += SNIP
 
-        return (state, message)
+        return (overall_state, message)
 
     def check_values(
         self, metric: str, values: Iterable[float]
