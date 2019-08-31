@@ -87,7 +87,6 @@ class ReporterSink(metricq.DurableSink):
     def _init_checks(self, check_config) -> None:
         self._clear_checks()
         for check, config in check_config.items():
-            logger.info(f'Setting up new check "{check}"')
             metrics = config.get("metrics")
             if metrics is None:
                 raise ValueError(f'Check "{check}" does not contain any metrics')
@@ -117,6 +116,11 @@ class ReporterSink(metricq.DurableSink):
 
             # timout is optional too
             timeout: Optional[str] = config.get("timeout")
+
+            logger.info(
+                f"Setting up check {check} with "
+                f"value_contraints={value_constraints!r} and timeout={timeout!r}"
+            )
             self._checks[check] = Check(
                 name=check,
                 metrics=metrics,
@@ -130,6 +134,7 @@ class ReporterSink(metricq.DurableSink):
         metrics = set.union(*(set(check.metrics()) for check in self._checks.values()))
         logger.info(f"Subscribing to {len(metrics)} metric(s)...")
         await self.subscribe(metrics=metrics)
+        logger.info(f"Successfully subscribed to all required metrics")
 
     async def subscribe(self, metrics: Iterable[str], **kwargs) -> None:
         return await super().subscribe(metrics=list(metrics), **kwargs)
@@ -138,15 +143,13 @@ class ReporterSink(metricq.DurableSink):
     async def _configure(
         self, checks, nsca: dict, reporting_host: str = gethostname(), **_kwargs
     ) -> None:
-        logger.info(
-            f"Received configuration: "
-            f"sending checks from {reporting_host} to NSCA host {nsca['host']}"
-        )
-
         self._reporting_host = reporting_host
 
         await self._init_nsca_client(**nsca)
         self._init_checks(checks)
+        logger.info(
+            f"Configured NSCA reporter sink for host {self._reporting_host} and checks {', '.join(self._checks)!r}"
+        )
 
         # send initial reports
         for name, check in self._checks.items():
@@ -216,7 +219,7 @@ class ReporterSink(metricq.DurableSink):
             message += f"received last value at {date_str}"
             state = aionsca.State.CRITICAL
 
-        logger.warning(f'Check "{check_name} is {state}": {message}')
+        logger.warning(f"Check {check_name!r} is {state.name}: {message}")
 
         await self._nsca_client.send_report(
             host=self._reporting_host, service=check_name, state=state, message=message
