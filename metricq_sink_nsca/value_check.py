@@ -71,7 +71,6 @@ class ValueCheck:
         self._warning_range = AbnormalRange(low=warning_below, high=warning_above)
         self._critical_range = AbnormalRange(low=critical_below, high=critical_above)
         self._ignore = set(ignore)
-        self._last_state = State.UNKNOWN
 
     @property
     def warning_range(self):
@@ -81,7 +80,7 @@ class ValueCheck:
     def critical_range(self):
         return self._critical_range
 
-    def _get_state(self, value: float) -> State:
+    def get_state(self, value: float) -> State:
         if value in self._ignore:
             return State.OK
 
@@ -91,11 +90,6 @@ class ValueCheck:
             return State.WARNING
         else:
             return State.OK
-
-    def get_state(self, value: float) -> (State, bool):
-        new_state = self._get_state(value)
-        old_state, self._last_state = self._last_state, new_state
-        return (new_state, new_state != old_state)
 
     def __repr__(self):
         return (

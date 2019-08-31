@@ -30,43 +30,46 @@ from .logging import get_logger
 
 logger = get_logger(__name__)
 
-_StateCollection = Dict[str, float]
-
 
 class _StateCacheCategories(NamedTuple):
-    ok: _StateCollection = dict()
-    warning: _StateCollection = dict()
-    critical: _StateCollection = dict()
+    ok: Set[str] = set()
+    warning: Set[str] = set()
+    critical: Set[str] = set()
+    unknown: Set[str] = set()
 
 
 class StateCache:
-    def __init__(self, *metrics: str):
-        self._unknown: Set[str] = set(*metrics)
-        self._categories: _StateCacheCategories = _StateCacheCategories()
+    def __init__(self, *metrics):
+        self._by_state: Dict[State, Set[str]] = {
+            State.OK: set(),
+            State.WARNING: set(),
+            State.CRITICAL: set(),
+            State.UNKNOWN: set(*metrics),
+        }
 
-    def update_state(self, metric: str, value: float, state: State):
+    def update_state(self, metric: str, state: State) -> bool:
         """Update the cached state of a metric
         """
-        was_known = any(
-            category.pop(metric, None) is not None for category in self._categories
-        )
-
-        was_unknown = metric in self._unknown
-        self._unknown.discard(metric)
-
-        assert was_known or was_unknown
-
-        if state == State.OK:
-            self._categories.ok[metric] = value
-        elif state == State.WARNING:
-            self._categories.warning[metric] = value
-        elif state == State.CRITICAL:
-            self._categories.critical[metric] = value
+        last_state: State = None
+        for prev_state, metrics in self._by_state.items():
+            if metric in metrics:
+                metrics.remove(metric)
+                last_state = prev_state
+                break
         else:
-            raise ValueError(f"Not a state: {state!r}")
+            raise ValueError(
+                f"StateCache not setup to track state of metric {metric!r}"
+            )
+
+        try:
+            self._by_state[state].add(metric)
+        except KeyError:
+            raise ValueError(f"Not a valid state: {state!r} ({type(state).__name__})")
+
+        return last_state != state
 
     def __repr__(self):
-        return f"StateCache(unknown={self._unknown}, categories={self._categories})"
+        return f"StateCache(categories={self._categories})"
 
     def overall_state(self) -> State:
         """Return the most severe state of any cached metric
@@ -74,29 +77,22 @@ class StateCache:
         If any of the contained metrics are critical, return State.CRITICAL,
         if any are warning, return State.WARNING etc.
 
-        Should all metrics be in an unknown state, return State.UNKNOWN. This
+        Should any metrics be in an unknown state, return State.UNKNOWN. This
         happens if they were never updated via update_state().
         """
-        if self._categories.critical:
+        if self._by_state[State.UNKNOWN]:
+            return State.UNKNOWN
+        elif self._by_state[State.CRITICAL]:
             return State.CRITICAL
-        elif self._categories.warning:
+        elif self._by_state[State.WARNING]:
             return State.WARNING
-        elif self._categories.ok:
+        elif self._by_state[State.OK]:
             return State.OK
         else:
             return State.UNKNOWN
 
-    @property
-    def ok(self) -> _StateCollection:
-        return self._categories.ok
-
-    @property
-    def warning(self) -> _StateCollection:
-        return self._categories.warning
-
-    @property
-    def critical(self) -> _StateCollection:
-        return self._categories.critical
+    def __getitem__(self, state: State) -> Set[str]:
+        return self._by_state[state]
 
 
 class Check:
@@ -163,6 +159,37 @@ class Check:
 
         return on_timeout
 
+    def format_overall_state(self) -> (State, str):
+        state = self._state_cache.overall_state()
+
+        message: str
+        if state == State.OK:
+            message = "All metrics OK"
+        else:
+            header_line = list()
+            details = list()
+
+            for state in (State.UNKNOWN, State.CRITICAL, State.WARNING):
+                name = state.name
+                metrics = self._state_cache[state]
+                if len(metrics):
+                    header_line.append(f"{len(metrics)} metric(s) {name}")
+                    details.append(f"{name}:")
+                    for metric in metrics:
+                        details.append(f"\t{metric}")
+
+            header_line = ", ".join(header_line)
+            details = "\n".join(details)
+            message = f"{header_line}\n{details}"
+
+        if len(message) > MAX_LENGTH_MESSAGE:
+            logger.warning(f"Details exceed maximum message length!")
+            SNIP = "\n...\n<SOME METRICS OMITTED>"
+            message = message[: MAX_LENGTH_MESSAGE - len(SNIP)]
+            message += SNIP
+
+        return (state, message)
+
     def check_values(
         self, metric: str, values: Iterable[float]
     ) -> Iterable[Tuple[State, str]]:
@@ -175,43 +202,11 @@ class Check:
 
         reports = list()
         for value in values:
-            (state, changed) = check.get_state(value)
+            state = check.get_state(value)
+            changed = self._state_cache.update_state(metric, state)
             if changed:
-                self._state_cache.update_state(metric, value, state)
-                state = self._state_cache.overall_state()
-
-                message: str
-                if state == State.OK:
-                    message = "All metrics OK"
-                else:
-                    critical = self._state_cache.critical
-                    warning = self._state_cache.warning
-
-                    header_line = list()
-                    details = list()
-
-                    if len(critical):
-                        header_line.append(f"{len(critical)} metric(s) CRITICAL")
-                        details.append(f"CRITICAL ({check.critical_range}):")
-                        for metric, critical_value in critical.items():
-                            details.append(f"\t{metric}={critical_value:.12g}")
-
-                    if len(warning):
-                        header_line.append(f"{len(warning)} metric(s) WARNING")
-                        details.append(f"WARNING ({check.warning_range}):")
-                        for metric, warn_value in warning.items():
-                            details.append(f"\t{metric}={warn_value:.12g}")
-
-                    header_line = ", ".join(header_line)
-                    details = "\n".join(details)
-                    message = f"{header_line}\n{details}"
-
-                    if len(message) > MAX_LENGTH_MESSAGE:
-                        logger.warning(f"Details exceed maximum message length!\n")
-                        SNIP = "\n...\n<SOME VALUES OMITTED>"
-                        message = message[: MAX_LENGTH_MESSAGE - len(SNIP)]
-                        message += SNIP
-
+                logger.debug(f"State for {metric!r} changed to {state!r}")
+                state, message = self.format_overall_state()
                 reports.append((state, message))
 
         return reports
