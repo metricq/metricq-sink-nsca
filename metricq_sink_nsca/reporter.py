@@ -148,6 +148,14 @@ class ReporterSink(metricq.DurableSink):
         await self._init_nsca_client(**nsca)
         self._init_checks(checks)
 
+        # send initial reports
+        for name, check in self._checks.items():
+            logger.debug(f"Sending initial report for check {name!r}")
+            state, message = check.format_overall_state()
+            await self._send_report(
+                host=self._reporting_host, service=name, state=state, message=message
+            )
+
     async def _on_data_chunk(self, metric: str, data_chunk):
         # check that all values in this data chunk are within the desired
         # thresholds
