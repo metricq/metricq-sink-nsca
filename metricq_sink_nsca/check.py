@@ -121,14 +121,11 @@ class Check:
 
         self._state_cache = StateCache(self._metrics)
 
-        self._value_checks: Optional[Dict[str, ValueCheck]] = None
+        self._value_check: Optional[ValueCheck] = ValueCheck(
+            **value_constraints
+        ) if value_constraints is not None else None
         self._timeout_checks: Optional[Dict[str, TimeoutCheck]] = None
         self._on_timeout_callback: Optional[Coroutine] = None
-
-        if value_constraints is not None:
-            self._value_checks: Dict[str, ValueCheck] = {
-                metric: ValueCheck(**value_constraints) for metric in self._metrics
-            }
 
         if timeout is not None:
             if on_timeout is None:
@@ -143,7 +140,7 @@ class Check:
             }
 
     def _has_value_checks(self) -> bool:
-        return self._value_checks is not None
+        return self._value_check is not None
 
     def _has_timeout_checks(self) -> bool:
         return self._timeout_checks is not None
@@ -164,7 +161,7 @@ class Check:
 
         message: str
         if overall_state == State.OK:
-            message = "All metrics OK"
+            message = "All metrics are OK"
         else:
             header_line = list()
             details = list()
@@ -173,7 +170,12 @@ class Check:
                 name = state.name
                 metrics = self._state_cache[state]
                 if len(metrics):
-                    header_line.append(f"{len(metrics)} metric(s) {name}")
+                    header_part = f"{len(metrics)} metric(s) are {name}"
+                    if state is not State.UNKNOWN and self._has_value_checks():
+                        abnormal_range = self._value_check.range_by_state(state)
+                        header_part += f" ({abnormal_range!s})"
+
+                    header_line.append(header_part)
                     details.append(f"{name}:")
                     for metric in metrics:
                         details.append(f"\t{metric}")
@@ -196,13 +198,12 @@ class Check:
         if not self._has_value_checks():
             return list()
 
-        check: ValueCheck = self._value_checks.get(metric)
-        if check is None:
+        if metric not in self._metrics:
             raise ValueError(f'Metric "{metric}" not known to check "{self._name}"')
 
         reports = list()
         for value in values:
-            state = check.get_state(value)
+            state = self._value_check.get_state(value)
             changed = self._state_cache.update_state(metric, state)
             if changed:
                 logger.debug(f"State for {metric!r} changed to {state!r}")

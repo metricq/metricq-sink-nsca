@@ -80,6 +80,16 @@ class ValueCheck:
     def critical_range(self):
         return self._critical_range
 
+    def range_by_state(self, state: State) -> AbnormalRange:
+        if state == State.CRITICAL:
+            return self.critical_range
+        elif state == State.WARNING:
+            return self.warning_range
+        else:
+            raise ValueError(
+                "Can only get abnormal range for State.CRITICAL or State.WARNING"
+            )
+
     def get_state(self, value: float) -> State:
         if value in self._ignore:
             return State.OK
