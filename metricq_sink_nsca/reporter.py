@@ -39,7 +39,7 @@ class ReporterSink(metricq.DurableSink):
     def __init__(self, *args, **kwargs):
         # these are configured after connecting, see _configure().
         self._reporting_host: str = None
-        self._nsca_client: aionsca.Client = None
+        self._nsca_client_args: Optional[Dict] = None
         self._checks: Dict[str, Check] = dict()
 
         super().__init__(*args, **kwargs)
@@ -62,27 +62,11 @@ class ReporterSink(metricq.DurableSink):
         Acceptable keyword arguments (`client_args`) are `host`, `port`,
         `encryption_method` and `password`.
         """
-        if self._nsca_client is not None:
-            await self._nsca_client.disconnect(flush=True)
-            self._nsca_client = None
-
-        try:
-            self._nsca_client = aionsca.Client(
-                **{
-                    arg: client_args[arg]
-                    for arg in client_args
-                    if arg in ("host", "port", "encryption_method", "password")
-                }
-            )
-        except ValueError as e:
-            raise ValueError("Failed to construct NSCA client") from e
-        try:
-            logger.info(f"Connecting to NSCA host...")
-            await self._nsca_client.connect()
-        except OSError as e:
-            msg = "Failed to connect to NSCA host"
-            logger.error(msg)
-            raise ConnectionError(msg) from e
+        self._nsca_client_args = {
+            arg: client_args[arg]
+            for arg in client_args
+            if arg in ("host", "port", "encryption_method", "password")
+        }
 
     def _init_checks(self, check_config) -> None:
         self._clear_checks()
@@ -152,12 +136,20 @@ class ReporterSink(metricq.DurableSink):
         )
 
         # send initial reports
+        reports = list()
         for name, check in self._checks.items():
             logger.debug(f"Sending initial report for check {name!r}")
             state, message = check.format_overall_state()
-            await self._send_report(
-                host=self._reporting_host, service=name, state=state, message=message
+            reports.append(
+                dict(
+                    host=self._reporting_host,
+                    service=name,
+                    state=state,
+                    message=message,
+                )
             )
+
+        await self._send_reports(*reports)
 
     async def _on_data_chunk(self, metric: str, data_chunk):
         # check that all values in this data chunk are within the desired
@@ -189,8 +181,21 @@ class ReporterSink(metricq.DurableSink):
                         )
                     )
 
-        for report in reports:
-            await self._nsca_client.send_report(**report)
+        await self._send_reports(*reports)
+
+    async def _send_reports(self, *reports):
+        try:
+            async with aionsca.Client(**self._nsca_client_args) as client:
+                for report in reports:
+                    await client.send_report(**report)
+        except (ConnectionError, OSError) as e:
+            # The OSError is likely a collection of connection errors,
+            # see https://bugs.python.org/issue29980.
+            host, port = (
+                self._nsca_client_args.get("host", "localhost"),
+                self._nsca_client_args.get("port", 5667),
+            )
+            logger.error(f"Failed to send reports to NSCA host ({host}:{port}): {e}")
 
     async def _bump_timeout_checks(
         self, metric: str, last_timestamp: Timestamp
@@ -220,7 +225,11 @@ class ReporterSink(metricq.DurableSink):
             state = aionsca.State.CRITICAL
 
         logger.warning(f"Check {check_name!r} is {state.name}: {message}")
-
-        await self._nsca_client.send_report(
-            host=self._reporting_host, service=check_name, state=state, message=message
+        await self._send_reports(
+            dict(
+                host=self._reporting_host,
+                service=check_name,
+                state=state,
+                message=message,
+            )
         )
