@@ -39,10 +39,14 @@ class StateCache:
             State.CRITICAL: set(),
             State.UNKNOWN: set(*metrics),
         }
+        self._timed_out: Dict[str, Optional[Timestamp]] = dict()
 
     def update_state(self, metric: str, state: State) -> bool:
         """Update the cached state of a metric
+
+        This implicitly marks a metric as not being timed out.
         """
+        self._timed_out.pop(metric, None)
         last_state: State = None
         for prev_state, metrics in self._by_state.items():
             if metric in metrics:
@@ -61,8 +65,11 @@ class StateCache:
 
         return last_state != state
 
+    def set_timed_out(self, metric: str, last_timestamp: Optional[Timestamp]):
+        self._timed_out[metric] = last_timestamp
+
     def __repr__(self):
-        return f"StateCache(categories={self._categories})"
+        return f"StateCache(by_state={self._by_state}, timed_out={self._timed_out})"
 
     def overall_state(self) -> State:
         """Return the most severe state of any cached metric
@@ -73,6 +80,9 @@ class StateCache:
         Should any metrics be in an unknown state, return State.UNKNOWN. This
         happens if they were never updated via update_state().
         """
+        if self._timed_out:
+            return State.CRITICAL
+
         if self._by_state[State.UNKNOWN]:
             return State.UNKNOWN
         elif self._by_state[State.CRITICAL]:
@@ -86,6 +96,10 @@ class StateCache:
 
     def __getitem__(self, state: State) -> Set[str]:
         return self._by_state[state]
+
+    @property
+    def timed_out(self) -> Dict[str, Optional[Timestamp]]:
+        return self._timed_out
 
 
 class Check:
@@ -120,14 +134,15 @@ class Check:
         self._timeout_checks: Optional[Dict[str, TimeoutCheck]] = None
         self._on_timeout_callback: Optional[Coroutine] = None
 
+        self._timeout = None
         if timeout is not None:
             if on_timeout is None:
                 raise ValueError("on_timeout callback is required if timeout is given")
+            self._timeout = Timedelta.from_string(timeout)
             self._on_timeout_callback = on_timeout
             self._timeout_checks = {
                 metric: TimeoutCheck(
-                    Timedelta.from_string(timeout),
-                    self._get_on_timeout_callback(metric),
+                    self._timeout, self._get_on_timeout_callback(metric)
                 )
                 for metric in self._metrics
             }
@@ -139,12 +154,12 @@ class Check:
         return self._timeout_checks is not None
 
     def _get_on_timeout_callback(self, metric) -> Coroutine:
-        async def on_timeout(timeout, last_timestamp):
+        async def on_timeout(timeout: Timedelta, last_timestamp: Optional[Timestamp]):
+            logger.warning(f"Check {self._name!r}: {metric} timed out after {timeout}")
+            self._state_cache.set_timed_out(metric, last_timestamp)
+            state, message = self.format_overall_state()
             await self._on_timeout_callback(
-                check_name=self._name,
-                metric=metric,
-                timeout=timeout,
-                last_timestamp=last_timestamp,
+                check_name=self._name, state=state, message=message
             )
 
         return on_timeout
@@ -158,6 +173,20 @@ class Check:
         else:
             header_line = list()
             details = list()
+
+            timed_out = self._state_cache.timed_out
+            if self._has_timeout_checks() and timed_out:
+                header_line.append(
+                    f"{len(timed_out)} metric(s) timed out after {self._timeout}"
+                )
+                for metric, last_timestamp in timed_out.items():
+                    detail: str
+                    if last_timestamp is None:
+                        detail = "no values received"
+                    else:
+                        datestr = last_timestamp.datetime.isoformat(timespec="seconds")
+                        detail = f"last value at {datestr}"
+                    details.append(f"\t{metric}: {detail}")
 
             for state in (State.UNKNOWN, State.CRITICAL, State.WARNING):
                 name = state.name

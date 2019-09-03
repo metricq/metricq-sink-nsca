@@ -26,7 +26,7 @@ from typing import Dict, Iterable, Optional
 from socket import gethostname
 
 import metricq
-from metricq import Timedelta, Timestamp
+from metricq import Timestamp
 import aionsca
 
 logger = get_logger(__name__)
@@ -110,7 +110,7 @@ class ReporterSink(metricq.DurableSink):
                 metrics=metrics,
                 value_constraints=value_constraints,
                 timeout=timeout,
-                on_timeout=self._send_timeout_report,
+                on_timeout=self._on_check_timeout,
             )
 
     async def connect(self):
@@ -212,22 +212,9 @@ class ReporterSink(metricq.DurableSink):
             )
         )
 
-    async def _send_timeout_report(
-        self,
-        check_name: str,
-        metric: str,
-        timeout: Timedelta,
-        last_timestamp: Optional[Timestamp],
+    async def _on_check_timeout(
+        self, check_name: str, state: aionsca.State, message: str
     ):
-        message = f'Metric "{metric}" timed out after {timeout}: '
-        if last_timestamp is None:
-            message += "never received any values"
-            state = aionsca.State.UNKNOWN
-        else:
-            date_str = last_timestamp.datetime.astimezone()
-            message += f"received last value at {date_str}"
-            state = aionsca.State.CRITICAL
-
         logger.warning(f"Check {check_name!r} is {state.name}: {message}")
         await self._send_reports(
             dict(
