@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import Iterable, Dict, Optional, Coroutine, Set, NamedTuple, Tuple
+from typing import Iterable, Dict, Optional, Coroutine, Set, Tuple
 
 from metricq.types import Timedelta, Timestamp
 from aionsca import State
@@ -29,13 +29,6 @@ from .timeout_check import TimeoutCheck
 from .logging import get_logger
 
 logger = get_logger(__name__)
-
-
-class _StateCacheCategories(NamedTuple):
-    ok: Set[str] = set()
-    warning: Set[str] = set()
-    critical: Set[str] = set()
-    unknown: Set[str] = set()
 
 
 class StateCache:
