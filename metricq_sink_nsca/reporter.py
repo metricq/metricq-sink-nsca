@@ -184,6 +184,10 @@ class ReporterSink(metricq.DurableSink):
         await self._send_reports(*reports)
 
     async def _send_reports(self, *reports):
+        if not reports:
+            logger.debug("Not sending empty report batch")
+            return
+
         try:
             async with aionsca.Client(**self._nsca_client_args) as client:
                 for report in reports:
