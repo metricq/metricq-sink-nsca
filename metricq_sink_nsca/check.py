@@ -41,17 +41,15 @@ class StateCache:
         }
         self._timed_out: Dict[str, Optional[Timestamp]] = dict()
 
-    def update_state(self, metric: str, state: State) -> bool:
+    def update_state(self, metric: str, state: State):
         """Update the cached state of a metric
 
         This implicitly marks a metric as not being timed out.
         """
         self._timed_out.pop(metric, None)
-        last_state: State = None
-        for prev_state, metrics in self._by_state.items():
+        for metrics in self._by_state.values():
             if metric in metrics:
                 metrics.remove(metric)
-                last_state = prev_state
                 break
         else:
             raise ValueError(
@@ -62,8 +60,6 @@ class StateCache:
             self._by_state[state].add(metric)
         except KeyError:
             raise ValueError(f"Not a valid state: {state!r} ({type(state).__name__})")
-
-        return last_state != state
 
     def set_timed_out(self, metric: str, last_timestamp: Optional[Timestamp]):
         self._timed_out[metric] = last_timestamp
@@ -127,6 +123,7 @@ class Check:
         self._metrics: Set[str] = set(metrics)
 
         self._state_cache = StateCache(self._metrics)
+        self._last_overall_state = State.UNKNOWN
 
         self._value_check: Optional[ValueCheck] = ValueCheck(
             **value_constraints
@@ -147,20 +144,47 @@ class Check:
                 for metric in self._metrics
             }
 
+        self._report_trigger_throttle_period = Timedelta.from_s(30)
+        self._last_report_triggered_time = Timestamp(0)
+
     def _has_value_checks(self) -> bool:
         return self._value_check is not None
 
     def _has_timeout_checks(self) -> bool:
         return self._timeout_checks is not None
 
+    def _should_trigger_report(self) -> bool:
+        # Update overall state of this Check.
+        new_state = self._state_cache.overall_state()
+        old_state = self._last_overall_state
+        self._last_overall_state = new_state
+
+        # Has it been some time since we last triggered a report?  Every once
+        # in a while (dictated by self._report_trigger_throttle_period) we want
+        # to trigger a report even though the overall state did not change.
+        # This is a compromise between always having an up-to-date report sent
+        # to the host and not spamming the host with reports.
+        now = Timestamp.now()
+        is_stale = (
+            self._last_report_triggered_time + self._report_trigger_throttle_period
+            < now
+        )
+
+        should_trigger = new_state != old_state or is_stale
+        if should_trigger:
+            self._last_report_triggered_time = now
+
+        return should_trigger
+
     def _get_on_timeout_callback(self, metric) -> Coroutine:
         async def on_timeout(timeout: Timedelta, last_timestamp: Optional[Timestamp]):
             logger.warning(f"Check {self._name!r}: {metric} timed out after {timeout}")
             self._state_cache.set_timed_out(metric, last_timestamp)
-            state, message = self.format_overall_state()
-            await self._on_timeout_callback(
-                check_name=self._name, state=state, message=message
-            )
+            if self._should_trigger_report():
+                state, message = self.format_overall_state()
+                await self._on_timeout_callback(
+                    check_name=self._name, state=state, message=message
+                )
 
         return on_timeout
 
@@ -208,7 +232,7 @@ class Check:
 
         if len(message) > MAX_LENGTH_MESSAGE:
             logger.warning(f"Details exceed maximum message length!")
-            SNIP = "\n...\n<SOME METRICS OMITTED>"
+            SNIP = "...\n<SOME METRICS OMITTED>"
             message = message[: MAX_LENGTH_MESSAGE - len(SNIP)]
             message += SNIP
 
@@ -226,11 +250,13 @@ class Check:
         reports = list()
         for value in values:
             state = self._value_check.get_state(value)
-            changed = self._state_cache.update_state(metric, state)
-            if changed:
-                logger.debug(f"State for {metric!r} changed to {state!r}")
-                state, message = self.format_overall_state()
-                reports.append((state, message))
+            self._state_cache.update_state(metric, state)
+            if self._should_trigger_report():
+                overall_state, message = self.format_overall_state()
+                logger.debug(
+                    f"Overall state changed to {overall_state!r} (caused by {metric!r})"
+                )
+                reports.append((overall_state, message))
 
         return reports
 
