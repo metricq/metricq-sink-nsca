@@ -21,7 +21,7 @@ from setuptools import setup
 
 setup(
     name="metricq_sink_nsca",
-    version="1.0",
+    version="1.1",
     author="TU Dresden",
     python_requires=">=3.7",
     packages=["metricq_sink_nsca"],
