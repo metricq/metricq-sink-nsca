@@ -75,6 +75,27 @@
               "type": "string",
               "description": "Send check result of severity \"WARNING\" if no values arrive apart more than the specified period",
               "pattern": "^\\s*([+-]?\\d*[.,]?\\d+)\\s*([^\\d]*)\\s*$"
+            },
+            "plugins": {
+              "type": "object",
+              "description": "A collection of plugin files to be loaded for this check",
+              "patternProperties": {
+                "[a-z_]+": {
+                  "type": "object",
+                  "description": "A plugin to load.\nPlugins are python files that expose a single entry point `get_plugin(name: str, config: dict, metric: Set[str]) -> metricq_sink_nsca.plugin.Plugin`.  It returns an initialized plugin instance.",
+                  "properties": {
+                    "file": {
+                      "type": "string",
+                      "description": "File system path to plugin implementation (.py file)"
+                    },
+                    "config": {
+                        "type": "object",
+                        "description": "Optional configuration data for this plugin"
+                    }
+                  },
+                  "required": ["file"]
+                }
+              }
             }
           },
           "required": [

@@ -24,6 +24,7 @@ from .logging import get_logger
 import asyncio
 from typing import Dict, Iterable, Optional
 from socket import gethostname
+from itertools import accumulate
 
 import metricq
 from metricq import Timestamp
@@ -100,10 +101,12 @@ class ReporterSink(metricq.DurableSink):
 
             # timout is optional too
             timeout: Optional[str] = config.get("timeout")
+            plugins: dict = config.get("plugins", {})
 
             logger.info(
                 f"Setting up check {check} with "
-                f"value_contraints={value_constraints!r} and timeout={timeout!r}"
+                f"value_contraints={value_constraints!r} and timeout={timeout!r}, "
+                f"plugins={list(plugins.keys())}"
             )
             self._checks[check] = Check(
                 name=check,
@@ -111,12 +114,18 @@ class ReporterSink(metricq.DurableSink):
                 value_constraints=value_constraints,
                 timeout=timeout,
                 on_timeout=self._on_check_timeout,
+                plugins=plugins,
             )
 
     async def connect(self):
         await super().connect()
-        metrics = set.union(*(set(check.metrics()) for check in self._checks.values()))
-        logger.info(f"Subscribing to {len(metrics)} metric(s)...")
+        metrics = set.union(
+            *(
+                set(check.metrics()) | set(check.extra_metrics())
+                for check in self._checks.values()
+            )
+        )
+        logger.info(f"Subscribing to {len(metrics)} metric(s): {sorted(metrics)}...")
         await self.subscribe(metrics=metrics)
         logger.info(f"Successfully subscribed to all required metrics")
 
@@ -154,12 +163,13 @@ class ReporterSink(metricq.DurableSink):
     async def _on_data_chunk(self, metric: str, data_chunk):
         # check that all values in this data chunk are within the desired
         # thresholds
-        await self._check_values(metric, data_chunk.value)
+        timestamps = list(map(Timestamp, accumulate(data_chunk.time_delta)))
+        await self._check_values(metric, zip(timestamps, data_chunk.value))
 
         # "bump" all timeout checks with the last timestamp for which we
         # received values, i.e. reset the asynchronous timers that would
         # fire if we do not receive value for too long.
-        last_timestamp = Timestamp(sum(data_chunk.time_delta))
+        last_timestamp = timestamps[-1]
         await self._bump_timeout_checks(metric, last_timestamp)
 
     async def on_data(self, _metric, _timestamp, _value):

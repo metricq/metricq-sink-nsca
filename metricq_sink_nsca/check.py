@@ -26,6 +26,7 @@ from aionsca.report import MAX_LENGTH_MESSAGE
 
 from .value_check import ValueCheck
 from .timeout_check import TimeoutCheck
+from .plugin import Plugin, load as load_plugin
 from .logging import get_logger
 
 logger = get_logger(__name__)
@@ -106,6 +107,7 @@ class Check:
         value_constraints: Optional[Dict[str, float]],
         timeout: Optional[str] = None,
         on_timeout: Optional[Coroutine] = None,
+        plugins: Dict = {},
     ):
         """Create value- and timeout-checks for a set of metrics
 
@@ -146,6 +148,32 @@ class Check:
 
         self._report_trigger_throttle_period = Timedelta.from_s(30)
         self._last_report_triggered_time = Timestamp(0)
+
+        self._plugins: Dict[str, Plugin] = dict()
+        self._plugins_extra_metrics: Dict[str, Set[str]] = dict()
+        for name, config in plugins.items():
+            logger.debug(f"Loading plugin {name!r}...")
+            try:
+                file = config["file"]
+                plugin = load_plugin(
+                    name=name,
+                    file=file,
+                    metrics=self._metrics,
+                    config=config.get("config", {}),
+                )
+                self._plugins[name] = plugin
+                self._plugins_extra_metrics[name] = plugin.extra_metrics()
+                logger.info(
+                    f"Loaded plugin {name!r} for check {self._name} from {file}"
+                )
+            except Exception:
+                logger.exception(
+                    f"Failed to load plugin {name!r} for check {self._name}"
+                )
+                raise
+        self._extra_metrics: Set[str] = set.union(
+            *(extra_metrics for extra_metrics in self._plugins_extra_metrics.values())
+        )
 
     def _has_value_checks(self) -> bool:
         return self._value_check is not None
@@ -239,17 +267,40 @@ class Check:
         return (overall_state, message)
 
     def check_values(
-        self, metric: str, values: Iterable[float]
+        self, metric: str, tv_pairs: Iterable[Tuple[Timestamp, float]]
     ) -> Iterable[Tuple[State, str]]:
-        if not self._has_value_checks():
-            return list()
+        is_extra_metric = metric in self._extra_metrics
 
-        if metric not in self._metrics:
+        if metric not in self._metrics and not is_extra_metric:
             raise ValueError(f'Metric "{metric}" not known to check "{self._name}"')
 
+        if is_extra_metric:
+            for timestamp, value in tv_pairs:
+                for plugin_name, plugin in self._plugins.items():
+                    if metric in self._plugins_extra_metrics[plugin_name]:
+                        plugin.on_extra_metric(metric, value, timestamp)
+            return list()
+
         reports = list()
-        for value in values:
-            state = self._value_check.get_state(value)
+        for timestamp, value in tv_pairs:
+            state = (
+                self._value_check.get_state(value)
+                if self._has_value_checks()
+                else State.OK
+            )
+
+            # Update the state from plugins. If they yield different updated
+            # states, use the most severe one as the new state of this metric
+            # (values of the State enum are ordered by severity).
+            state = max(
+                (
+                    plugin.check(metric, timestamp, value, state)
+                    for plugin in self._plugins.values()
+                ),
+                key=lambda plugin_state: plugin_state.value,
+                default=state,
+            )
+
             self._state_cache.update_state(metric, state)
             if self._should_trigger_report():
                 overall_state, message = self.format_overall_state()
@@ -274,6 +325,9 @@ class Check:
 
     def metrics(self) -> Iterable[str]:
         return self._metrics
+
+    def extra_metrics(self) -> Iterable[str]:
+        return self._extra_metrics
 
     def __contains__(self, metric: str) -> bool:
         return metric in self._metrics
