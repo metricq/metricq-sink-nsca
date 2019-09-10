@@ -16,16 +16,17 @@
           "type": "string",
           "description": "Address of the NSCA daemon to which check results are sent (see `-H` flag of `send_nsca`)"
         },
-        "password": {
-          "type": "string",
-          "description": "Encryption password for packages sent to NSCA host"
+        "port": {
+          "type": "integer",
+          "description": "Port of the NSCA daemon to which check results are sent (see `-p` flag of `send_nsca`)"
         },
-        "encryption_method": {
-          "type": [
-            "string",
-            "number"
-          ],
-          "description": "Encryption method used for packages sent to NSCA host\nEither a numeral (as in send_nsca.cfg) or a literal encryption scheme name"
+        "executable": {
+          "type": "string",
+          "description": "Path of `send_nsca` executable to use for sending check results"
+        },
+        "config_file": {
+          "type": "string",
+          "description": "Path to `send_nsca` configuration file (see `-c` flag of `send_nsca`)"
         }
       }
     },
@@ -89,11 +90,13 @@
                       "description": "File system path to plugin implementation (.py file)"
                     },
                     "config": {
-                        "type": "object",
-                        "description": "Optional configuration data for this plugin"
+                      "type": "object",
+                      "description": "Optional configuration data for this plugin"
                     }
                   },
-                  "required": ["file"]
+                  "required": [
+                    "file"
+                  ]
                 }
               }
             }

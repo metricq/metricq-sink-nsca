@@ -21,12 +21,12 @@
 from typing import Iterable, Dict, Optional, Coroutine, Set, NamedTuple
 
 from metricq.types import Timedelta, Timestamp
-from aionsca import State
 
 from .value_check import ValueCheck
 from .timeout_check import TimeoutCheck
 from .plugin import Plugin, load as load_plugin
 from .logging import get_logger
+from .state import State
 
 logger = get_logger(__name__)
 
@@ -247,7 +247,7 @@ class Check:
                     else:
                         datestr = last_timestamp.datetime.isoformat(timespec="seconds")
                         detail = f"last value at {datestr}"
-                    details.append(f"\t{metric}: {detail}")
+                    details.append(f"{metric}: {detail}")
 
             for state in (State.UNKNOWN, State.CRITICAL, State.WARNING):
                 name = state.name
@@ -260,8 +260,7 @@ class Check:
 
                     header_line.append(header_part)
                     details.append(f"{name}:")
-                    for metric in metrics:
-                        details.append(f"\t{metric}")
+                    details.extend(sorted(metrics))
 
             header_line = ", ".join(header_line)
             details = "\n".join(details)

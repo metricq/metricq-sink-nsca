@@ -17,18 +17,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
-from setuptools import setup
 
-setup(
-    name="metricq_sink_nsca",
-    version="1.2",
-    author="TU Dresden",
-    python_requires=">=3.7",
-    packages=["metricq_sink_nsca"],
-    scripts=[],
-    entry_points="""
-      [console_scripts]
-      metricq-sink-nsca=metricq_sink_nsca:main
-      """,
-    install_requires=["click", "click-log", "metricq>=0.0"],
-)
+from enum import Enum
+
+
+class State(Enum):
+    OK = 0
+    WARNING = 1
+    CRITICAL = 2
+    UNKNOWN = 3

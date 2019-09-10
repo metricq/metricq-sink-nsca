@@ -1,5 +1,5 @@
 from metricq import Timestamp
-from aionsca import State
+from metricq_sink_nsca.state import State
 
 from typing import Set
 from logging import getLogger

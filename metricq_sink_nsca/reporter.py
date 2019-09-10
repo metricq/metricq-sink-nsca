@@ -18,22 +18,39 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-from .check import Check
-from .logging import get_logger
-
 import asyncio
 from typing import Dict, Iterable, Optional, List
 from socket import gethostname
 from itertools import accumulate
+from dataclasses import dataclass
 
 import metricq
 from metricq import Timestamp
-import aionsca
+
+from .check import Check
+from .logging import get_logger
+from .state import State
 
 from .check import Check, TvPair, CheckReport
 from .logging import get_logger
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class NscaConfig:
+    host: str = "localhost"
+    port: int = 5667
+    config_file: str = "/etc/nsca/send_nsca.cfg"
+    executable: str = "/usr/sbin/send_nsca"
+
+
+@dataclass
+class NscaReport:
+    host: str
+    service: str
+    state: State
+    message: str
 
 
 class ReporterSink(metricq.DurableSink):
@@ -43,7 +60,7 @@ class ReporterSink(metricq.DurableSink):
     def __init__(self, *args, **kwargs):
         # these are configured after connecting, see _configure().
         self._reporting_host: str = None
-        self._nsca_client_args: Optional[Dict] = None
+        self._nsca_config: Optional[NscaConfig] = None
         self._checks: Dict[str, Check] = dict()
 
         super().__init__(*args, **kwargs)
@@ -59,18 +76,6 @@ class ReporterSink(metricq.DurableSink):
             check.cancel_timeout_checks()
 
         self._checks = dict()
-
-    async def _init_nsca_client(self, **client_args) -> None:
-        """Initialize NSCA client and connect to NSCA host.
-
-        Acceptable keyword arguments (`client_args`) are `host`, `port`,
-        `encryption_method` and `password`.
-        """
-        self._nsca_client_args = {
-            arg: client_args[arg]
-            for arg in client_args
-            if arg in ("host", "port", "encryption_method", "password")
-        }
 
     def _init_checks(self, check_config) -> None:
         self._clear_checks()
@@ -140,12 +145,13 @@ class ReporterSink(metricq.DurableSink):
         self, checks, nsca: dict, reporting_host: str = gethostname(), **_kwargs
     ) -> None:
         self._reporting_host = reporting_host
+        self._nsca_config = NscaConfig(**nsca)
 
-        await self._init_nsca_client(**nsca)
         self._init_checks(checks)
         logger.info(
             f"Configured NSCA reporter sink for host {self._reporting_host} and checks {', '.join(self._checks)!r}"
         )
+        logger.debug(f"NSCA config: {self._nsca_config!r}")
 
         # send initial reports
         reports = list()
@@ -153,7 +159,7 @@ class ReporterSink(metricq.DurableSink):
             logger.debug(f"Sending initial report for check {name!r}")
             state, message = check.format_overall_state()
             reports.append(
-                dict(
+                NscaReport(
                     host=self._reporting_host,
                     service=name,
                     state=state,
@@ -190,7 +196,7 @@ class ReporterSink(metricq.DurableSink):
             report: CheckReport
             for report in check.generate_reports(metric, tv_pairs):
                 reports.append(
-                    dict(
+                    NscaReport(
                         host=self._reporting_host,
                         service=name,
                         state=report.state,
@@ -200,23 +206,67 @@ class ReporterSink(metricq.DurableSink):
 
         await self._send_reports(*reports)
 
-    async def _send_reports(self, *reports):
+    async def _send_reports(self, *reports: NscaReport):
         if not reports:
-            logger.debug("Not sending empty report batch")
             return
 
-        try:
-            async with aionsca.Client(**self._nsca_client_args) as client:
-                for report in reports:
-                    await client.send_report(**report)
-        except (ConnectionError, OSError) as e:
-            # The OSError is likely a collection of connection errors,
-            # see https://bugs.python.org/issue29980.
-            host, port = (
-                self._nsca_client_args.get("host", "localhost"),
-                self._nsca_client_args.get("port", 5667),
+        report: NscaReport
+        report_blocks = list()
+        for report in reports:
+            message = report.message.replace("\n", "\\n").encode("ascii")
+            max_len = 4096
+            if len(message) >= max_len:
+                SNIP = br"\n...\nSOME METRICS OMITTED"
+                cut = message.rfind(b"\\n", 0, max_len - len(SNIP))
+                message = message[:cut] + SNIP
+            assert len(message) <= max_len
+            block = b";".join(
+                (
+                    report.host.encode("ascii"),
+                    report.service.encode("ascii"),
+                    str(report.state.value).encode("ascii"),
+                    message,
+                )
             )
-            logger.error(f"Failed to send reports to NSCA host ({host}:{port}): {e}")
+            report_blocks.append(block)
+        nsca: NscaConfig = self._nsca_config
+        proc = await asyncio.create_subprocess_exec(
+            nsca.executable,
+            "-H",
+            nsca.host,
+            "-p",
+            str(nsca.port),
+            "-c",
+            nsca.config_file,
+            "-d",
+            ";",
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+        )
+
+        stdout_data: bytes
+        stdout_data, _stderr_data = await proc.communicate(
+            input=b"\x17".join(report_blocks)
+        )
+        rc = proc.returncode
+        assert rc is not None
+
+        def log_output(log_level_function, msg_bytes):
+            try:
+                msg = msg_bytes.decode("ascii")
+                for line in msg.splitlines():
+                    log_level_function("send_nsca: " + line)
+            except UnicodeError:
+                log_level_function("send_nsca: failed to decode output")
+
+        if rc != 0:
+            logger.error(
+                f"Failed to send reports to NSCA host ({nsca.host}:{nsca.port}): "
+                f"returncode={rc}"
+            )
+            log_output(logger.error, stdout_data)
+        else:
+            log_output(logger.debug, stdout_data)
 
     async def _bump_timeout_checks(
         self, metric: str, last_timestamp: Timestamp
@@ -229,12 +279,10 @@ class ReporterSink(metricq.DurableSink):
             )
         )
 
-    async def _on_check_timeout(
-        self, check_name: str, state: aionsca.State, message: str
-    ):
+    async def _on_check_timeout(self, check_name: str, state: State, message: str):
         logger.warning(f"Check {check_name!r} is {state.name}: {message}")
         await self._send_reports(
-            dict(
+            NscaReport(
                 host=self._reporting_host,
                 service=check_name,
                 state=state,

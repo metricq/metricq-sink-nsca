@@ -4,7 +4,8 @@ from types import ModuleType
 from abc import ABC, abstractmethod
 
 from metricq import Timestamp
-from aionsca import State
+
+from .state import State
 
 
 class Plugin(ABC):
