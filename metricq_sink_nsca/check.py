@@ -171,8 +171,8 @@ class Check:
                     f"Failed to load plugin {name!r} for check {self._name}"
                 )
                 raise
-        self._extra_metrics: Set[str] = set.union(
-            *(extra_metrics for extra_metrics in self._plugins_extra_metrics.values())
+        self._extra_metrics: Set[str] = set().union(
+            *self._plugins_extra_metrics.values()
         )
 
     def _has_value_checks(self) -> bool:

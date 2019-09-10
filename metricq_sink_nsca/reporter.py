@@ -119,7 +119,7 @@ class ReporterSink(metricq.DurableSink):
 
     async def connect(self):
         await super().connect()
-        metrics = set.union(
+        metrics = set().union(
             *(
                 set(check.metrics()) | set(check.extra_metrics())
                 for check in self._checks.values()
