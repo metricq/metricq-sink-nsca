@@ -22,13 +22,16 @@ from .check import Check
 from .logging import get_logger
 
 import asyncio
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Optional, List
 from socket import gethostname
 from itertools import accumulate
 
 import metricq
 from metricq import Timestamp
 import aionsca
+
+from .check import Check, TvPair, CheckReport
+from .logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -161,35 +164,39 @@ class ReporterSink(metricq.DurableSink):
         await self._send_reports(*reports)
 
     async def _on_data_chunk(self, metric: str, data_chunk):
+        tv_pairs = [
+            TvPair(timestamp=Timestamp(t), value=v)
+            for t, v in zip(accumulate(data_chunk.time_delta), data_chunk.value)
+        ]
+
         # check that all values in this data chunk are within the desired
         # thresholds
-        timestamps = list(map(Timestamp, accumulate(data_chunk.time_delta)))
-        await self._check_values(metric, zip(timestamps, data_chunk.value))
+        await self._check_values(metric, tv_pairs)
 
         # "bump" all timeout checks with the last timestamp for which we
         # received values, i.e. reset the asynchronous timers that would
         # fire if we do not receive value for too long.
-        last_timestamp = timestamps[-1]
+        last_timestamp = tv_pairs[-1].timestamp
         await self._bump_timeout_checks(metric, last_timestamp)
 
     async def on_data(self, _metric, _timestamp, _value):
         """Functionality implemented in _on_data_chunk
         """
 
-    async def _check_values(self, metric: str, values: Iterable[float]) -> None:
+    async def _check_values(self, metric: str, tv_pairs: List[TvPair]) -> None:
         reports = list()
         check: Check
         for name, check in self._checks.items():
-            if metric in check:
-                for (state, message) in check.check_values(metric, values):
-                    reports.append(
-                        dict(
-                            host=self._reporting_host,
-                            service=name,
-                            state=state,
-                            message=message,
-                        )
+            report: CheckReport
+            for report in check.generate_reports(metric, tv_pairs):
+                reports.append(
+                    dict(
+                        host=self._reporting_host,
+                        service=name,
+                        state=report.state,
+                        message=report.message,
                     )
+                )
 
         await self._send_reports(*reports)
 

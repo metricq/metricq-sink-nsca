@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import Iterable, Dict, Optional, Coroutine, Set, Tuple
+from typing import Iterable, Dict, Optional, Coroutine, Set, NamedTuple
 
 from metricq.types import Timedelta, Timestamp
 from aionsca import State
@@ -30,6 +30,16 @@ from .plugin import Plugin, load as load_plugin
 from .logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class TvPair(NamedTuple):
+    timestamp: Timestamp
+    value: float
+
+
+class CheckReport(NamedTuple):
+    state: State
+    message: str
 
 
 class StateCache:
@@ -266,20 +276,11 @@ class Check:
 
         return (overall_state, message)
 
-    def check_values(
-        self, metric: str, tv_pairs: Iterable[Tuple[Timestamp, float]]
-    ) -> Iterable[Tuple[State, str]]:
-        is_extra_metric = metric in self._extra_metrics
-
-        if metric not in self._metrics and not is_extra_metric:
+    def check_metric(
+        self, metric: str, tv_pairs: Iterable[TvPair]
+    ) -> Iterable[CheckReport]:
+        if metric not in self._metrics:
             raise ValueError(f'Metric "{metric}" not known to check "{self._name}"')
-
-        if is_extra_metric:
-            for timestamp, value in tv_pairs:
-                for plugin_name, plugin in self._plugins.items():
-                    if metric in self._plugins_extra_metrics[plugin_name]:
-                        plugin.on_extra_metric(metric, value, timestamp)
-            return list()
 
         reports = list()
         for timestamp, value in tv_pairs:
@@ -307,9 +308,28 @@ class Check:
                 logger.debug(
                     f"Overall state changed to {overall_state!r} (caused by {metric!r})"
                 )
-                reports.append((overall_state, message))
+                reports.append(CheckReport(state=overall_state, message=message))
 
         return reports
+
+    def update_extra_metric(self, extra_metric: str, tv_pairs: Iterable[TvPair]):
+        for timestamp, value in tv_pairs:
+            for plugin_name in self._plugins:
+                if extra_metric in self._plugins_extra_metrics[plugin_name]:
+                    self._plugins[plugin_name].on_extra_metric(
+                        extra_metric, timestamp, value
+                    )
+
+    def generate_reports(
+        self, metric: str, tv_pairs: Iterable[TvPair]
+    ) -> Iterable[CheckReport]:
+        if metric in self._extra_metrics:
+            self.update_extra_metric(extra_metric=metric, tv_pairs=tv_pairs)
+
+        if metric in self._metrics:
+            return self.check_metric(metric=metric, tv_pairs=tv_pairs)
+        else:
+            return list()
 
     async def bump_timeout_check(self, metric: str, timestamp: Timestamp) -> None:
         if self._has_timeout_checks():
