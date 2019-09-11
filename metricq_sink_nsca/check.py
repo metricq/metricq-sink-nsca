@@ -22,7 +22,6 @@ from typing import Iterable, Dict, Optional, Coroutine, Set, NamedTuple
 
 from metricq.types import Timedelta, Timestamp
 from aionsca import State
-from aionsca.report import MAX_LENGTH_MESSAGE
 
 from .value_check import ValueCheck
 from .timeout_check import TimeoutCheck
@@ -267,12 +266,6 @@ class Check:
             header_line = ", ".join(header_line)
             details = "\n".join(details)
             message = f"{header_line}\n{details}"
-
-        if len(message) > MAX_LENGTH_MESSAGE:
-            logger.warning(f"Details exceed maximum message length!")
-            SNIP = "...\n<SOME METRICS OMITTED>"
-            message = message[: MAX_LENGTH_MESSAGE - len(SNIP)]
-            message += SNIP
 
         return (overall_state, message)
 
