@@ -147,21 +147,26 @@ class ReporterSink(metricq.DurableSink):
             f"Configured NSCA reporter sink for host {self._reporting_host} and checks {', '.join(self._checks)!r}"
         )
 
-        # send initial reports
-        reports = list()
-        for name, check in self._checks.items():
-            logger.debug(f"Sending initial report for check {name!r}")
-            state, message = check.format_overall_state()
-            reports.append(
-                dict(
-                    host=self._reporting_host,
-                    service=name,
-                    state=state,
-                    message=message,
-                )
-            )
+        # WORKAROUND: Actually, do not send initial reports.
+        # They will most likely have state UNKNOWN.  Rather wait for the first
+        # state change to occur.  This prevents unecessary notifications via
+        # Centreon on startup.
+        #
+        # # send initial reports
+        # reports = list()
+        # for name, check in self._checks.items():
+        #     logger.debug(f"Sending initial report for check {name!r}")
+        #     state, message = check.format_overall_state()
+        #     reports.append(
+        #         dict(
+        #             host=self._reporting_host,
+        #             service=name,
+        #             state=state,
+        #             message=message,
+        #         )
+        #     )
 
-        await self._send_reports(*reports)
+        # await self._send_reports(*reports)
 
     async def _on_data_chunk(self, metric: str, data_chunk):
         tv_pairs = [
