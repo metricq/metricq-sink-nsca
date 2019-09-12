@@ -156,7 +156,7 @@ class Check:
             }
 
         self._report_trigger_throttle_period = Timedelta.from_s(30)
-        self._last_report_triggered_time = Timestamp(0)
+        self._last_report_triggered_time: Optional[Timestamp] = None
 
         self._plugins: Dict[str, Plugin] = dict()
         self._plugins_extra_metrics: Dict[str, Set[str]] = dict()
@@ -202,7 +202,7 @@ class Check:
         # This is a compromise between always having an up-to-date report sent
         # to the host and not spamming the host with reports.
         now = Timestamp.now()
-        is_stale = (
+        is_stale = self._last_report_triggered_time is not None and (
             self._last_report_triggered_time + self._report_trigger_throttle_period
             < now
         )
