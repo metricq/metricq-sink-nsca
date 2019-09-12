@@ -22,7 +22,7 @@ import asyncio
 from typing import Dict, Iterable, Optional, List
 from socket import gethostname
 from itertools import accumulate
-from dataclasses import dataclass
+from dataclasses import dataclass, fields as dataclass_fields
 
 import metricq
 from metricq import Timestamp
@@ -145,7 +145,14 @@ class ReporterSink(metricq.DurableSink):
         self, checks, nsca: dict, reporting_host: str = gethostname(), **_kwargs
     ) -> None:
         self._reporting_host = reporting_host
-        self._nsca_config = NscaConfig(**nsca)
+        self._nsca_config = NscaConfig(
+            **{
+                cfg_key: v
+                for cfg_key, v in nsca.items()
+                # ignore unknown keys in NSCA config
+                if cfg_key in set(f.name for f in dataclass_fields(NscaConfig))
+            }
+        )
 
         self._init_checks(checks)
         logger.info(
