@@ -128,7 +128,7 @@ class ReporterSink(metricq.DurableSink):
                 for check in self._checks.values()
             )
         )
-        logger.info(f"Subscribing to {len(metrics)} metric(s): {sorted(metrics)}...")
+        logger.info(f"Subscribing to {len(metrics)} metric(s)...")
         await self.subscribe(metrics=metrics)
         logger.info(f"Successfully subscribed to all required metrics")
 
@@ -211,6 +211,7 @@ class ReporterSink(metricq.DurableSink):
             return
 
         try:
+            logger.info(f"Sending {len(reports)} report(s)")
             async with aionsca.Client(**self._nsca_client_args) as client:
                 for report in reports:
                     await client.send_report(**report)
@@ -221,7 +222,7 @@ class ReporterSink(metricq.DurableSink):
                 self._nsca_client_args.get("host", "localhost"),
                 self._nsca_client_args.get("port", 5667),
             )
-            logger.error(f"Failed to send reports to NSCA host ({host}:{port}): {e}")
+            logger.error(f"Failed to send reports to NSCA server at {host}:{port}: {e}")
 
     async def _bump_timeout_checks(
         self, metric: str, last_timestamp: Timestamp
