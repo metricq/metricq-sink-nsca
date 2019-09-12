@@ -3,6 +3,13 @@
   "title": "metricq-nsca-sink (passive check result reporter) configuration",
   "description": "Configuration describing which metrics to monitor and provide results for, based on their availability and value range",
   "type": "object",
+  "definitions": {
+      "resend_interval": {
+          "type": "string",
+          "pattern": "^\\s*([+-]?\\d*[.,]?\\d+)\\s*([^\\d]*)\\s*$",
+          "description": "Minimum time interval at which a check should trigger reports, even if its overall state did not change.\nThis is useful for keeping the Centreon/Nagios host up-to-date and signaling that this passive check is not dead."
+      }
+  },
   "properties": {
     "reporting_host": {
       "type": "string",
@@ -28,6 +35,9 @@
           "description": "Encryption method used for packages sent to NSCA host\nEither a numeral (as in send_nsca.cfg) or a literal encryption scheme name"
         }
       }
+    },
+    "resend_interval": {
+        "$ref": "#/definitions/resend_interval"
     },
     "checks": {
       "type": "object",
@@ -75,6 +85,9 @@
               "type": "string",
               "description": "Send check result of severity \"WARNING\" if no values arrive apart more than the specified period",
               "pattern": "^\\s*([+-]?\\d*[.,]?\\d+)\\s*([^\\d]*)\\s*$"
+            },
+            "resend_interval": {
+                "$ref": "#/definitions/resend_interval"
             },
             "plugins": {
               "type": "object",

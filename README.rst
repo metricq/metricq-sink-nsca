@@ -22,7 +22,8 @@ startup, which is a JSON dict in the form of
    {
       "reporting_host": "<address>",
       "nsca": { ... },
-      "checks": { ... }
+      "checks": { ... },
+      "resend_interval": "<duration>"
    }
 
 Here, ``"reporting_host"`` is the name of the host for which the check results
@@ -32,6 +33,12 @@ are reported as configured in Nagios/Centreon (defaults to the output of
 of the host running the NSCA daemon (see ``-H``-flag of ``send_nsca``),
 ``nsca.password`` and ``nsca.encryption_method`` are strings as used in
 ``send_nsca``-configuration format.
+The duration specified by ``resend_interval`` is an optional default for all
+checks, see below_ for its per-check configuration.
+
+Per-check configuration
+'''''''''''''''''''''''
+
 The dictionary ``"checks"`` specifies service checks by their name:
 
 .. code-block:: json
@@ -66,10 +73,19 @@ optional:
     within the warning resp. critical range.  This is useful for faulty sources
     which spuriously report erroneous values.
 
-``timeout`` (string)
+``timeout`` (duration string)
    Send a check result of state *CRITICAL* to the NSCA host if consecutive
    values arrive apart more than the specified duration.  The duration is
    of the form of  ``<value><unit>``, e.g. ``30s`` or ``5min``.
+
+``resend_interval`` (duration string)
+    .. _below:
+    Minimum time interval at which this check should trigger reports, even if
+    its overall state did not change.  This is useful for keeping the
+    Centreon/Nagios host up-to-date and signaling that this passive check is
+    not dead.
+
+    Format is the same as for ``timeout``.
 
 
 Examples
