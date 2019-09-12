@@ -254,7 +254,7 @@ class ReporterSink(metricq.DurableSink):
             return
 
         try:
-            logger.info(f"Sending {len(reports)} report(s)")
+            logger.debug(f"Sending {len(reports)} report(s)")
             async with aionsca.Client(**self._nsca_client_args) as client:
                 for report in reports:
                     await client.send_report(**report)
