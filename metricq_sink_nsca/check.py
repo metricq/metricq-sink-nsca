@@ -114,7 +114,8 @@ class Check:
         name: str,
         metrics: Iterable[str],
         value_constraints: Optional[Dict[str, float]],
-        timeout: Optional[str] = None,
+        resend_interval: Timedelta,
+        timeout: Optional[Timedelta] = None,
         on_timeout: Optional[Coroutine] = None,
         plugins: Dict = {},
     ):
@@ -122,6 +123,10 @@ class Check:
 
         :param name: The name of this check
         :param metrics: Iterable of names of metrics to monitor
+        :param resend_interval: Minimum time interval at which this check should
+            trigger reports, even if its overall state did not change.  This is
+            useful for keeping the Centreon/Nagios host up-to-date and signaling
+            that this passive check is not dead.
         :param value_constraints: Dictionary indicating warning and critical
             value ranges, see ValueCheck.  If omitted, this check does not care
             for which values its metrics report.
@@ -146,7 +151,7 @@ class Check:
         if timeout is not None:
             if on_timeout is None:
                 raise ValueError("on_timeout callback is required if timeout is given")
-            self._timeout = Timedelta.from_string(timeout)
+            self._timeout = timeout
             self._on_timeout_callback = on_timeout
             self._timeout_checks = {
                 metric: TimeoutCheck(
@@ -155,7 +160,7 @@ class Check:
                 for metric in self._metrics
             }
 
-        self._report_trigger_throttle_period = Timedelta.from_s(30)
+        self._resend_interval: Timedelta = resend_interval
         self._last_report_triggered_time: Optional[Timestamp] = None
 
         self._plugins: Dict[str, Plugin] = dict()
@@ -197,14 +202,13 @@ class Check:
         self._last_overall_state = new_state
 
         # Has it been some time since we last triggered a report?  Every once
-        # in a while (dictated by self._report_trigger_throttle_period) we want
-        # to trigger a report even though the overall state did not change.
-        # This is a compromise between always having an up-to-date report sent
-        # to the host and not spamming the host with reports.
+        # in a while (dictated by self._resend_interval) we want to trigger a
+        # report even though the overall state did not change.  This is a
+        # compromise between always having an up-to-date report sent to the
+        # host and not spamming the host with reports.
         now = Timestamp.now()
         is_stale = self._last_report_triggered_time is not None and (
-            self._last_report_triggered_time + self._report_trigger_throttle_period
-            < now
+            (self._last_report_triggered_time + self._resend_interval) <= now
         )
 
         should_trigger = new_state != old_state or is_stale

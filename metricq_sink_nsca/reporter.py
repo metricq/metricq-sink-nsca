@@ -25,7 +25,7 @@ from itertools import accumulate
 from dataclasses import dataclass, fields as dataclass_fields
 
 import metricq
-from metricq import Timestamp
+from metricq import Timestamp, Timedelta
 
 from .check import Check
 from .logging import get_logger
@@ -62,6 +62,7 @@ class ReporterSink(metricq.DurableSink):
         self._reporting_host: str = None
         self._nsca_config: Optional[NscaConfig] = None
         self._checks: Dict[str, Check] = dict()
+        self._global_resend_interval: Optional[Timedelta] = None
 
         super().__init__(*args, **kwargs)
 
@@ -80,6 +81,25 @@ class ReporterSink(metricq.DurableSink):
     def _init_checks(self, check_config) -> None:
         self._clear_checks()
         for check, config in check_config.items():
+
+            def config_get(cfg_key: str, convert_with=None, default=None) -> Optional:
+                # This is correct, we want to refer to the current value of `config`
+                # pylint: disable=cell-var-from-loop
+                value = config.get(cfg_key)
+                if value is None:
+                    return default
+                else:
+                    try:
+                        return value if convert_with is None else convert_with(value)
+                    except ValueError as e:
+                        # see above
+                        # pylint: disable=cell-var-from-loop
+                        logger.error(
+                            f'Invalid config key "{cfg_key}"={value} '
+                            f'configured for check "{check}": {e}'
+                        )
+                        raise
+
             metrics = config.get("metrics")
             if metrics is None:
                 raise ValueError(f'Check "{check}" does not contain any metrics')
@@ -107,19 +127,29 @@ class ReporterSink(metricq.DurableSink):
                 if c in config
             }
 
-            # timout is optional too
-            timeout: Optional[str] = config.get("timeout")
-            plugins: dict = config.get("plugins", {})
+            # the following are all optional configuration items
+            timeout: Optional[Timedelta] = config_get(
+                "timeout", convert_with=Timedelta.from_string, default=None
+            )
+            resend_interval: Timedelta = config_get(
+                "resend_interval",
+                convert_with=Timedelta.from_string,
+                default=self._global_resend_interval,
+            )
+            plugins: dict = config_get("plugins", default={})
 
             logger.info(
-                f"Setting up check {check} with "
-                f"value_contraints={value_constraints!r} and timeout={timeout!r}, "
-                f"plugins={list(plugins.keys())}"
+                f'Setting up check "{check}" with '
+                f"value_contraints={value_constraints!r}, "
+                f"timeout={timeout!r}, "
+                f"plugins={list(plugins.keys())} and "
+                f"resend_interval={resend_interval} "
             )
             self._checks[check] = Check(
                 name=check,
                 metrics=metrics,
                 value_constraints=value_constraints,
+                resend_interval=resend_interval,
                 timeout=timeout,
                 on_timeout=self._on_check_timeout,
                 plugins=plugins,
@@ -142,7 +172,13 @@ class ReporterSink(metricq.DurableSink):
 
     @metricq.rpc_handler("config")
     async def _configure(
-        self, checks, nsca: dict, reporting_host: str = gethostname(), **_kwargs
+        self,
+        *,
+        checks,
+        nsca: dict,
+        reporting_host: str = gethostname(),
+        resend_interval: str = "3min",
+        **_kwargs,
     ) -> None:
         self._reporting_host = reporting_host
         self._nsca_config = NscaConfig(
@@ -153,6 +189,14 @@ class ReporterSink(metricq.DurableSink):
                 if cfg_key in set(f.name for f in dataclass_fields(NscaConfig))
             }
         )
+
+        try:
+            self._global_resend_interval = Timedelta.from_string(resend_interval)
+        except ValueError as e:
+            logger.error(
+                f'Invalid resend interval "{resend_interval}" in configuration: {e}'
+            )
+            raise
 
         self._init_checks(checks)
         logger.info(
@@ -222,7 +266,7 @@ class ReporterSink(metricq.DurableSink):
         if not reports:
             return
 
-        logger.info(f"Sending {len(reports)} report(s)")
+        logger.debug(f"Sending {len(reports)} report(s)")
 
         report: NscaReport
         report_blocks = list()
