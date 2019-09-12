@@ -133,7 +133,7 @@ class ReporterSink(metricq.DurableSink):
                 for check in self._checks.values()
             )
         )
-        logger.info(f"Subscribing to {len(metrics)} metric(s): {sorted(metrics)}...")
+        logger.info(f"Subscribing to {len(metrics)} metric(s)...")
         await self.subscribe(metrics=metrics)
         logger.info(f"Successfully subscribed to all required metrics")
 
@@ -222,6 +222,8 @@ class ReporterSink(metricq.DurableSink):
         if not reports:
             return
 
+        logger.info(f"Sending {len(reports)} report(s)")
+
         report: NscaReport
         report_blocks = list()
         for report in reports:
@@ -273,7 +275,7 @@ class ReporterSink(metricq.DurableSink):
 
         if rc != 0:
             logger.error(
-                f"Failed to send reports to NSCA host ({nsca.host}:{nsca.port}): "
+                f"Failed to send reports to NSCA host at {nsca.host}:{nsca.port}: "
                 f"returncode={rc}"
             )
             log_output(logger.error, stdout_data)
