@@ -295,12 +295,17 @@ class Check:
                 default=state,
             )
 
+            old_state = self._last_overall_state
             self._state_cache.update_state(metric, state)
             if self._should_trigger_report():
                 overall_state, message = self.format_overall_state()
-                logger.debug(
-                    f"Overall state changed to {overall_state!r} (caused by {metric!r})"
-                )
+                if old_state != overall_state:
+                    logger.info(
+                        f'Check "{self._name}" changed state: '
+                        f"{old_state.name} -> {overall_state.name} "
+                        f"(caused by {metric!r})"
+                    )
+
                 reports.append(CheckReport(state=overall_state, message=message))
 
         return reports
