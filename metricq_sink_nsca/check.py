@@ -51,7 +51,7 @@ class Check:
         resend_interval: Timedelta,
         timeout: Optional[Timedelta] = None,
         on_timeout: Optional[Coroutine] = None,
-        plugins: Dict = {},
+        plugins: Optional[Dict[str, Dict]] = None,
     ):
         """Create value- and timeout-checks for a set of metrics
 
@@ -68,6 +68,7 @@ class Check:
             this duration, run the callback on_timeout
         :param on_timeout: Callback to run when metrics do not deliver values
             in time, mandatory if timeout is given.
+        :param plugins: A dictionary containing plugin configurations by name
         """
         self._name = name
         self._metrics: Set[str] = set(metrics)
@@ -99,26 +100,27 @@ class Check:
 
         self._plugins: Dict[str, Plugin] = dict()
         self._plugins_extra_metrics: Dict[str, Set[str]] = dict()
-        for name, config in plugins.items():
-            logger.debug(f"Loading plugin {name!r}...")
-            try:
-                file = config["file"]
-                plugin = load_plugin(
-                    name=name,
-                    file=file,
-                    metrics=self._metrics,
-                    config=config.get("config", {}),
-                )
-                self._plugins[name] = plugin
-                self._plugins_extra_metrics[name] = plugin.extra_metrics()
-                logger.info(
-                    f"Loaded plugin {name!r} for check {self._name} from {file}"
-                )
-            except Exception:
-                logger.exception(
-                    f"Failed to load plugin {name!r} for check {self._name}"
-                )
-                raise
+        if plugins is not None:
+            for name, config in plugins.items():
+                logger.debug(f"Loading plugin {name!r}...")
+                try:
+                    file = config["file"]
+                    plugin = load_plugin(
+                        name=name,
+                        file=file,
+                        metrics=self._metrics,
+                        config=config.get("config", {}),
+                    )
+                    self._plugins[name] = plugin
+                    self._plugins_extra_metrics[name] = plugin.extra_metrics()
+                    logger.info(
+                        f"Loaded plugin {name!r} for check {self._name} from {file}"
+                    )
+                except Exception:
+                    logger.exception(
+                        f"Failed to load plugin {name!r} for check {self._name}"
+                    )
+                    raise
         self._extra_metrics: Set[str] = set().union(
             *self._plugins_extra_metrics.values()
         )
