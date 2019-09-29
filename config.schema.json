@@ -4,9 +4,12 @@
   "description": "Configuration describing which metrics to monitor and provide results for, based on their availability and value range",
   "type": "object",
   "definitions": {
-      "resend_interval": {
+      "duration": {
           "type": "string",
-          "pattern": "^\\s*([+-]?\\d*[.,]?\\d+)\\s*([^\\d]*)\\s*$",
+          "pattern": "^\\s*([+-]?\\d*[.,]?\\d+)\\s*([^\\d]*)\\s*$"
+      },
+      "resend_interval": {
+          "$ref": "#/definitions/duration",
           "description": "Minimum time interval at which a check should trigger reports, even if its overall state did not change.\nThis is useful for keeping the Centreon/Nagios host up-to-date and signaling that this passive check is not dead."
       }
   },
@@ -44,7 +47,7 @@
       "type": "object",
       "description": "Configuration for each value/timeout check, by Nagios/Centreon service name",
       "patternProperties": {
-        "^[^\\t]$": {
+        "^[^\\s;]+$": {
           "type": "object",
           "description": "Passive check configuration",
           "properties": {
@@ -89,6 +92,9 @@
             },
             "resend_interval": {
                 "$ref": "#/definitions/resend_interval"
+            },
+            "transition_debounce_window": {
+                "$ref": "#/definitions/duration"
             },
             "plugins": {
               "type": "object",

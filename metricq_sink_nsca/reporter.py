@@ -137,13 +137,19 @@ class ReporterSink(metricq.DurableSink):
                 default=self._global_resend_interval,
             )
             plugins: dict = config_get("plugins", default={})
+            transition_debounce_window = config_get(
+                "transition_debounce_window",
+                convert_with=Timedelta.from_string,
+                default=None,
+            )
 
             logger.info(
                 f'Setting up check "{check}" with '
                 f"value_contraints={value_constraints!r}, "
                 f"timeout={timeout!r}, "
-                f"plugins={list(plugins.keys())} and "
-                f"resend_interval={resend_interval} "
+                f"plugins={list(plugins.keys())},"
+                f"resend_interval={resend_interval} and "
+                f"transition_debounce_window={transition_debounce_window} "
             )
             self._checks[check] = Check(
                 name=check,
@@ -153,6 +159,7 @@ class ReporterSink(metricq.DurableSink):
                 timeout=timeout,
                 on_timeout=self._on_check_timeout,
                 plugins=plugins,
+                transition_debounce_window=transition_debounce_window,
             )
 
     async def connect(self):

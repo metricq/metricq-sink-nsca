@@ -27,6 +27,7 @@ from .timeout_check import TimeoutCheck
 from .plugin import Plugin, load as load_plugin
 from .logging import get_logger
 from .state import State
+from .state_cache import StateCache
 
 logger = get_logger(__name__)
 
@@ -41,73 +42,6 @@ class CheckReport(NamedTuple):
     message: str
 
 
-class StateCache:
-    def __init__(self, *metrics):
-        self._by_state: Dict[State, Set[str]] = {
-            State.OK: set(),
-            State.WARNING: set(),
-            State.CRITICAL: set(),
-            State.UNKNOWN: set(*metrics),
-        }
-        self._timed_out: Dict[str, Optional[Timestamp]] = dict()
-
-    def update_state(self, metric: str, state: State):
-        """Update the cached state of a metric
-
-        This implicitly marks a metric as not being timed out.
-        """
-        self._timed_out.pop(metric, None)
-        for metrics in self._by_state.values():
-            if metric in metrics:
-                metrics.remove(metric)
-                break
-        else:
-            raise ValueError(
-                f"StateCache not setup to track state of metric {metric!r}"
-            )
-
-        try:
-            self._by_state[state].add(metric)
-        except KeyError:
-            raise ValueError(f"Not a valid state: {state!r} ({type(state).__name__})")
-
-    def set_timed_out(self, metric: str, last_timestamp: Optional[Timestamp]):
-        self._timed_out[metric] = last_timestamp
-
-    def __repr__(self):
-        return f"StateCache(by_state={self._by_state}, timed_out={self._timed_out})"
-
-    def overall_state(self) -> State:
-        """Return the most severe state of any cached metric
-
-        If any of the contained metrics are critical, return State.CRITICAL,
-        if any are warning, return State.WARNING etc.
-
-        Should any metrics be in an unknown state, return State.UNKNOWN. This
-        happens if they were never updated via update_state().
-        """
-        if self._timed_out:
-            return State.CRITICAL
-
-        if self._by_state[State.UNKNOWN]:
-            return State.UNKNOWN
-        elif self._by_state[State.CRITICAL]:
-            return State.CRITICAL
-        elif self._by_state[State.WARNING]:
-            return State.WARNING
-        elif self._by_state[State.OK]:
-            return State.OK
-        else:
-            return State.UNKNOWN
-
-    def __getitem__(self, state: State) -> Set[str]:
-        return self._by_state[state]
-
-    @property
-    def timed_out(self) -> Dict[str, Optional[Timestamp]]:
-        return self._timed_out
-
-
 class Check:
     def __init__(
         self,
@@ -117,7 +51,8 @@ class Check:
         resend_interval: Timedelta,
         timeout: Optional[Timedelta] = None,
         on_timeout: Optional[Coroutine] = None,
-        plugins: Dict = {},
+        plugins: Optional[Dict[str, Dict]] = None,
+        transition_debounce_window: Optional[Timedelta] = None,
     ):
         """Create value- and timeout-checks for a set of metrics
 
@@ -134,11 +69,16 @@ class Check:
             this duration, run the callback on_timeout
         :param on_timeout: Callback to run when metrics do not deliver values
             in time, mandatory if timeout is given.
+        :param plugins: A dictionary containing plugin configurations by name
+        :param transition_debounce_window: Time window in which state
+            transitions are debounced.
         """
         self._name = name
         self._metrics: Set[str] = set(metrics)
 
-        self._state_cache = StateCache(self._metrics)
+        self._state_cache = StateCache(
+            metrics=self._metrics, transition_debounce_window=transition_debounce_window
+        )
         self._last_overall_state = State.UNKNOWN
 
         self._value_check: Optional[ValueCheck] = ValueCheck(
@@ -165,26 +105,27 @@ class Check:
 
         self._plugins: Dict[str, Plugin] = dict()
         self._plugins_extra_metrics: Dict[str, Set[str]] = dict()
-        for name, config in plugins.items():
-            logger.debug(f"Loading plugin {name!r}...")
-            try:
-                file = config["file"]
-                plugin = load_plugin(
-                    name=name,
-                    file=file,
-                    metrics=self._metrics,
-                    config=config.get("config", {}),
-                )
-                self._plugins[name] = plugin
-                self._plugins_extra_metrics[name] = plugin.extra_metrics()
-                logger.info(
-                    f"Loaded plugin {name!r} for check {self._name} from {file}"
-                )
-            except Exception:
-                logger.exception(
-                    f"Failed to load plugin {name!r} for check {self._name}"
-                )
-                raise
+        if plugins is not None:
+            for name, config in plugins.items():
+                logger.debug(f"Loading plugin {name!r}...")
+                try:
+                    file = config["file"]
+                    plugin = load_plugin(
+                        name=name,
+                        file=file,
+                        metrics=self._metrics,
+                        config=config.get("config", {}),
+                    )
+                    self._plugins[name] = plugin
+                    self._plugins_extra_metrics[name] = plugin.extra_metrics()
+                    logger.info(
+                        f"Loaded plugin {name!r} for check {self._name} from {file}"
+                    )
+                except Exception:
+                    logger.exception(
+                        f"Failed to load plugin {name!r} for check {self._name}"
+                    )
+                    raise
         self._extra_metrics: Set[str] = set().union(
             *self._plugins_extra_metrics.values()
         )
@@ -299,7 +240,7 @@ class Check:
             )
 
             old_state = self._last_overall_state
-            self._state_cache.update_state(metric, state)
+            self._state_cache.update_state(metric, timestamp, state)
             if self._should_trigger_report():
                 overall_state, message = self.format_overall_state()
                 if old_state != overall_state:
