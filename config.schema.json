@@ -43,7 +43,7 @@
       "type": "object",
       "description": "Configuration for each value/timeout check, by Nagios/Centreon service name",
       "patternProperties": {
-        "^[^\\t]$": {
+        "^[^\\s;]+$": {
           "type": "object",
           "description": "Passive check configuration",
           "properties": {
