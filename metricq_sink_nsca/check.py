@@ -52,6 +52,7 @@ class Check:
         timeout: Optional[Timedelta] = None,
         on_timeout: Optional[Coroutine] = None,
         plugins: Optional[Dict[str, Dict]] = None,
+        transition_debounce_window: Optional[Timedelta] = None,
     ):
         """Create value- and timeout-checks for a set of metrics
 
@@ -69,11 +70,15 @@ class Check:
         :param on_timeout: Callback to run when metrics do not deliver values
             in time, mandatory if timeout is given.
         :param plugins: A dictionary containing plugin configurations by name
+        :param transition_debounce_window: Time window in which state
+            transitions are debounced.
         """
         self._name = name
         self._metrics: Set[str] = set(metrics)
 
-        self._state_cache = StateCache(self._metrics)
+        self._state_cache = StateCache(
+            metrics=self._metrics, transition_debounce_window=transition_debounce_window
+        )
         self._last_overall_state = State.UNKNOWN
 
         self._value_check: Optional[ValueCheck] = ValueCheck(
@@ -236,7 +241,7 @@ class Check:
             )
 
             old_state = self._last_overall_state
-            self._state_cache.update_state(metric, state)
+            self._state_cache.update_state(metric, timestamp, state)
             if self._should_trigger_report():
                 overall_state, message = self.format_overall_state()
                 if old_state != overall_state:
