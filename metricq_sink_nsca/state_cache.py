@@ -36,18 +36,18 @@ class StateTransition:
 
 
 class StateTransitionHistory:
-    def __init__(self, debounce_window: Optional[Timedelta]):
+    def __init__(self, time_window: Optional[Timedelta]):
         self._transitions: List[StateTransition] = list()
-        self._debounce_window: Optional[Timedelta] = debounce_window
+        self._time_window: Optional[Timedelta] = time_window
 
     def insert(self, time: Timestamp, state: State):
         transition = StateTransition(time, state)
         self._transitions.append(transition)
 
         # prune old transitions
-        if self._debounce_window is not None:
+        if self._time_window is not None:
             for i in range(len(self._transitions[:-1])):
-                if self._transitions[i + 1].time + self._debounce_window >= time:
+                if self._transitions[i + 1].time + self._time_window >= time:
                     del self._transitions[:i]
                     break
         else:
@@ -90,7 +90,6 @@ class StateCache:
         transition_debounce_window: Optional[Timedelta] = None,
     ):
         metrics = tuple(metrics)
-        logger.debug(f"Initializing StateCache for metrics {metrics}")
         self._transition_histories: Dict[str, StateTransitionHistory] = {
             metric: StateTransitionHistory(time_window=transition_debounce_window)
             for metric in metrics
@@ -102,7 +101,6 @@ class StateCache:
             State.UNKNOWN: set(metrics),
         }
         self._timed_out: Dict[str, Optional[Timestamp]] = dict()
-        logger.debug(repr(self))
 
     def update_state(self, metric: str, timestamp: Timestamp, state: State):
         """Update the cached state of a metric
@@ -117,14 +115,17 @@ class StateCache:
             )
 
         metric_history.insert(time=timestamp, state=state)
-        logger.debug(f"history({metric}): {metric_history}")
         prevalences = metric_history.state_prevalences()
-        logger.debug(f"prevalences: {(prevalences or {}).items()}")
 
         if prevalences is None:
             prevalent_state = state
         else:
             prevalent_state = max(prevalences, key=lambda state: prevalences[state])
+            if prevalent_state != state:
+                logger.debug(
+                    f"Debounced transition for {metric!r}: "
+                    f"{state} ({prevalences[state]:3.0%}) => {prevalent_state} ({prevalences[prevalent_state]:3.0%})"
+                )
 
         self._update_cache(metric, prevalent_state)
 
@@ -141,8 +142,10 @@ class StateCache:
 
         try:
             self._by_state[state].add(metric)
-        except KeyError:
-            raise ValueError(f"Not a valid state: {state!r} ({type(state).__name__})")
+        except KeyError as e:
+            raise ValueError(
+                f"Not a valid state: {state!r} ({type(state).__qualname__})"
+            ) from e
 
     def set_timed_out(self, metric: str, last_timestamp: Optional[Timestamp]):
         self._timed_out[metric] = last_timestamp
