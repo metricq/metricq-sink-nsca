@@ -22,8 +22,8 @@ from typing import Dict, Optional, Set, List, Iterable
 from dataclasses import dataclass
 
 from metricq.types import Timestamp, Timedelta
-from aionsca import State
 
+from .state import State
 from .logging import get_logger
 
 logger = get_logger(__name__)
