@@ -18,10 +18,10 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-from aionsca import State
-
 import math
 from typing import Optional, Iterable
+
+from .state import State
 
 
 class AbnormalRange:

@@ -21,12 +21,12 @@
 from typing import Iterable, Dict, Optional, Coroutine, Set, NamedTuple
 
 from metricq.types import Timedelta, Timestamp
-from aionsca import State
 
 from .value_check import ValueCheck
 from .timeout_check import TimeoutCheck
 from .plugin import Plugin, load as load_plugin
 from .logging import get_logger
+from .state import State
 from .state_cache import StateCache
 
 logger = get_logger(__name__)
