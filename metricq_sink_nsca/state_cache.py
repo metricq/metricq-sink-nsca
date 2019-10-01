@@ -118,16 +118,24 @@ class StateCache:
         prevalences = metric_history.state_prevalences()
 
         if prevalences is None:
-            prevalent_state = state
+            median_state = state
         else:
-            prevalent_state = max(prevalences, key=lambda state: prevalences[state])
-            if prevalent_state != state:
+            # Debounce state transitions by using the 'median' state,
+            # sampled over the last X seconds.
+            cumulative_prevalence = 0.0
+            for some_state in State:
+                cumulative_prevalence += prevalences[some_state]
+                if cumulative_prevalence >= 0.5:
+                    median_state = some_state
+                    break
+
+            if median_state != state:
                 logger.debug(
                     f"Debounced transition for {metric!r}: "
-                    f"{state} ({prevalences[state]:3.0%}) => {prevalent_state} ({prevalences[prevalent_state]:3.0%})"
+                    f"{state} ({prevalences[state]:3.0%}) "
+                    f"-> {median_state} ({prevalences[median_state]:3.0%})"
                 )
-
-        self._update_cache(metric, prevalent_state)
+        self._update_cache(metric, median_state)
 
     def _update_cache(self, metric: str, state: State):
         self._timed_out.pop(metric, None)
