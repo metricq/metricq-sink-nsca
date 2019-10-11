@@ -27,12 +27,9 @@ from dataclasses import dataclass, fields as dataclass_fields
 import metricq
 from metricq import Timestamp, Timedelta
 
-from .check import Check
-from .logging import get_logger
-from .state import State
-
 from .check import Check, TvPair, CheckReport
 from .logging import get_logger
+from .state import State
 
 logger = get_logger(__name__)
 
