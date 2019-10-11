@@ -18,9 +18,6 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-from .check import Check
-from .logging import get_logger
-
 import asyncio
 from typing import Dict, Iterable, Optional, List
 from socket import gethostname
