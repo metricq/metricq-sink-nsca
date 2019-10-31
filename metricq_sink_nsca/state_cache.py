@@ -101,11 +101,14 @@ class StateTransitionHistory:
             return
         else:
             transition = StateTransition(time, state)
-            if self._transitions and time <= self._transitions[-1].time:
-                raise ValueError(
-                    f"Inserted times of state transitions must be strictly increasing "
-                    f"({time.posix_ns} <= {self._transitions[-1].time.posix_ns})"
-                )
+            if self._transitions:
+                latest_transition = self._transitions[-1]
+                if time <= latest_transition.time:
+                    raise ValueError(
+                        f"Times of state transitions must be strictly increasing: "
+                        f"new transition at {time.posix_ns} is not after "
+                        f"latest transition at {latest_transition.time.posix_ns}"
+                    )
             self._transitions.append(transition)
 
         # Prune any transitions that happened outside of the time window in
