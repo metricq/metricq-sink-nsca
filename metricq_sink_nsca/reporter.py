@@ -288,10 +288,11 @@ class ReporterSink(metricq.DurableSink):
             # The OSError is likely a collection of connection errors,
             # see https://bugs.python.org/issue29980.
             host, port = (
-                self._nsca_client_args.get("host", "localhost"),
-                self._nsca_client_args.get("port", 5667),
+                self._nsca_client_args.get("host", ""),
+                self._nsca_client_args.get("port", ""),
             )
-            logger.error(f"Failed to send reports to NSCA server at {host}:{port}: {e}")
+            host_spec = "" if not host and not port else f"at {host}:{port}"
+            logger.error(f"Failed to send reports to NSCA server {host_spec}: {e}")
 
     async def _bump_timeout_checks(
         self, metric: str, last_timestamp: Timestamp
