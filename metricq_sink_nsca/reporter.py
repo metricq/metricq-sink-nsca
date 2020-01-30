@@ -59,6 +59,7 @@ class ReporterSink(metricq.DurableSink):
         self._reporting_host: str = None
         self._nsca_config: Optional[NscaConfig] = None
         self._checks: Dict[str, Check] = dict()
+        self._check_configs: Dict[str] = dict()
         self._global_resend_interval: Optional[Timedelta] = None
 
         super().__init__(*args, **kwargs)
@@ -75,89 +76,126 @@ class ReporterSink(metricq.DurableSink):
 
         self._checks = dict()
 
+    def _parse_check_from_config(self, name: str, config: dict) -> Check:
+        def config_get(cfg_key: str, convert_with=None, default=None) -> Optional:
+            value = config.get(cfg_key)
+            if value is None:
+                return default
+            else:
+                try:
+                    return value if convert_with is None else convert_with(value)
+                except ValueError as e:
+                    raise ValueError(
+                        f'Invalid config key "{cfg_key}"={value}: {e}'
+                    ) from e
+
+        metrics = config.get("metrics")
+        if metrics is None:
+            raise ValueError(f"Check does not contain any metrics")
+
+        if not (
+            isinstance(metrics, list)
+            and len(metrics) > 0
+            and all(isinstance(m, str) for m in metrics)
+        ):
+            raise ValueError(
+                f'Configured key "metrics" must be a nonempty list of metric names'
+            )
+
+        # extract ranges for warnable and critical values from the config,
+        # each key is optional
+        value_constraints = {
+            c: config[c]
+            for c in (
+                "warning_below",
+                "warning_above",
+                "critical_below",
+                "critical_above",
+                "ignore",
+            )
+            if c in config
+        }
+
+        # the following are all optional configuration items
+        timeout: Optional[Timedelta] = config_get(
+            "timeout", convert_with=Timedelta.from_string, default=None
+        )
+        resend_interval: Timedelta = config_get(
+            "resend_interval",
+            convert_with=Timedelta.from_string,
+            default=self._global_resend_interval,
+        )
+        plugins: dict = config_get("plugins", default={})
+        transition_debounce_window = config_get(
+            "transition_debounce_window",
+            convert_with=Timedelta.from_string,
+            default=None,
+        )
+
+        logger.info(
+            f'Setting up check "{name}" with '
+            f"value_contraints={value_constraints!r}, "
+            f"timeout={timeout!r}, "
+            f"plugins={list(plugins.keys())},"
+            f"resend_interval={resend_interval} and "
+            f"transition_debounce_window={transition_debounce_window} "
+        )
+        return Check(
+            name=name,
+            metrics=metrics,
+            value_constraints=value_constraints,
+            resend_interval=resend_interval,
+            timeout=timeout,
+            on_timeout=self._on_check_timeout,
+            plugins=plugins,
+            transition_debounce_window=transition_debounce_window,
+        )
+
+    def _add_check(self, name: str, config: dict):
+        if not self._checks:
+            self._checks = dict()
+        logger.debug('Adding check "{}"', name)
+        self._checks[name] = self._parse_check_from_config(name, config)
+        self._check_configs[name] = config
+
+    def _remove_check(self, name: str):
+        if self._checks:
+            self._check_configs.pop(name)
+            check: Check = self._checks.pop(name)
+            if check is not None:
+                logger.debug('Removing check "{}"', name)
+                check.cancel_timeout_checks()
+
     def _init_checks(self, check_config) -> None:
-        self._clear_checks()
-        for check, config in check_config.items():
+        self._checks = dict()
+        for name, config in check_config.items():
+            self._add_check(name, config)
 
-            def config_get(cfg_key: str, convert_with=None, default=None) -> Optional:
-                # This is correct, we want to refer to the current value of `config`
-                # pylint: disable=cell-var-from-loop
-                value = config.get(cfg_key)
-                if value is None:
-                    return default
-                else:
-                    try:
-                        return value if convert_with is None else convert_with(value)
-                    except ValueError as e:
-                        # see above
-                        # pylint: disable=cell-var-from-loop
-                        logger.error(
-                            f'Invalid config key "{cfg_key}"={value} '
-                            f'configured for check "{check}": {e}'
-                        )
-                        raise
+    def _update_checks(self, updated_check_config) -> None:
+        new = set(updated_check_config.keys())
+        old = set(self._checks.keys())
 
-            metrics = config.get("metrics")
-            if metrics is None:
-                raise ValueError(f'Check "{check}" does not contain any metrics')
+        to_remove = old - new
+        to_add = new - old
+        to_update = new & old
 
-            if not (
-                isinstance(metrics, list)
-                and len(metrics) > 0
-                and all(isinstance(m, str) for m in metrics)
-            ):
-                raise ValueError(
-                    f'Check "{check}": "metrics" must be a nonempty list of metric names'
-                )
+        for name in to_remove:
+            logger.debug("Removing check {}", name)
+            self._remove_check(name)
 
-            # extract ranges for warnable and critical values from the config,
-            # each key is optional
-            value_constraints = {
-                c: config[c]
-                for c in (
-                    "warning_below",
-                    "warning_above",
-                    "critical_below",
-                    "critical_above",
-                    "ignore",
-                )
-                if c in config
-            }
+        for name in to_add:
+            logger.debug("Adding new check {}", name)
+            self._add_check(name, updated_check_config[name])
 
-            # the following are all optional configuration items
-            timeout: Optional[Timedelta] = config_get(
-                "timeout", convert_with=Timedelta.from_string, default=None
-            )
-            resend_interval: Timedelta = config_get(
-                "resend_interval",
-                convert_with=Timedelta.from_string,
-                default=self._global_resend_interval,
-            )
-            plugins: dict = config_get("plugins", default={})
-            transition_debounce_window = config_get(
-                "transition_debounce_window",
-                convert_with=Timedelta.from_string,
-                default=None,
-            )
-
-            logger.info(
-                f'Setting up check "{check}" with '
-                f"value_contraints={value_constraints!r}, "
-                f"timeout={timeout!r}, "
-                f"plugins={list(plugins.keys())},"
-                f"resend_interval={resend_interval} and "
-                f"transition_debounce_window={transition_debounce_window} "
-            )
-            self._checks[check] = Check(
-                name=check,
-                metrics=metrics,
-                value_constraints=value_constraints,
-                resend_interval=resend_interval,
-                timeout=timeout,
-                on_timeout=self._on_check_timeout,
-                plugins=plugins,
-                transition_debounce_window=transition_debounce_window,
-            )
+        for name in to_update:
+            old_config = self._check_configs[name]
+            updated_config = updated_check_config[name]
+            if updated_config != old_config:
+                logger.debug("Updating check {}", name)
+                self._remove_check(name)
+                self._add_check(name, updated_config)
+            else:
+                logger.debug("Skipping update of unchanged check {}", name)
 
     async def connect(self):
         await super().connect()
@@ -202,32 +240,15 @@ class ReporterSink(metricq.DurableSink):
             )
             raise
 
-        self._init_checks(checks)
+        if not self._checks:
+            self._init_checks(checks)
+        else:
+            self._update_checks(checks)
+
         logger.info(
             f"Configured NSCA reporter sink for host {self._reporting_host} and checks {', '.join(self._checks)!r}"
         )
         logger.debug(f"NSCA config: {self._nsca_config!r}")
-
-        # WORKAROUND: Actually, do not send initial reports.
-        # They will most likely have state UNKNOWN.  Rather wait for the first
-        # state change to occur.  This prevents unecessary notifications via
-        # Centreon on startup.
-        #
-        # # send initial reports
-        # reports = list()
-        # for name, check in self._checks.items():
-        #     logger.debug(f"Sending initial report for check {name!r}")
-        #     state, message = check.format_overall_state()
-        #     reports.append(
-        #         NscaReport(
-        #             host=self._reporting_host,
-        #             service=name,
-        #             state=state,
-        #             message=message,
-        #         )
-        #     )
-
-        # await self._send_reports(*reports)
 
     async def _on_data_chunk(self, metric: str, data_chunk):
         tv_pairs = [
