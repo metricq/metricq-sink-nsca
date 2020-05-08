@@ -19,6 +19,7 @@
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
+from math import isnan
 from typing import Dict, Iterable, Optional, List
 from socket import gethostname
 from itertools import accumulate
@@ -254,7 +255,12 @@ class ReporterSink(metricq.DurableSink):
         tv_pairs = [
             TvPair(timestamp=Timestamp(t), value=v)
             for t, v in zip(accumulate(data_chunk.time_delta), data_chunk.value)
+            if not isnan(v)
         ]
+
+        if len(tv_pairs) == 0:
+            logger.debug(f"No non-NaN values in DataChunk for metric {metric!r}")
+            return
 
         # check that all values in this data chunk are within the desired
         # thresholds
