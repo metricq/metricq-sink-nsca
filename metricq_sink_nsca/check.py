@@ -26,7 +26,12 @@ from .logging import get_logger
 from .plugin import Plugin
 from .plugin import load as load_plugin
 from .state import State
-from .state_cache import StateCache
+from .state_cache import (
+    IgnoreShortTransitions,
+    StateCache,
+    TransitionDebounce,
+    TransitionPostprocessor,
+)
 from .timeout_check import TimeoutCheck
 from .value_check import ValueCheck
 
@@ -54,6 +59,7 @@ class Check:
         on_timeout: Optional[Coroutine] = None,
         plugins: Optional[Dict[str, Dict]] = None,
         transition_debounce_window: Optional[Timedelta] = None,
+        transition_postprocessing: Optional[Dict] = None,
     ):
         """Create value- and timeout-checks for a set of metrics
 
@@ -77,8 +83,27 @@ class Check:
         self._name = name
         self._metrics: Set[str] = set(metrics)
 
+        transition_postprocessor: Optional[TransitionPostprocessor] = None
+
+        if transition_postprocessing is not None:
+            POSTPROCESSORS = {
+                "debounce": TransitionDebounce,
+                "ignore_short_transitions": IgnoreShortTransitions,
+            }
+            try:
+                selected = transition_postprocessing.get("type", "debounce")
+                transition_postprocessor = POSTPROCESSORS[selected](
+                    **transition_postprocessing
+                )
+            except KeyError:
+                raise ValueError(
+                    f"Unknown transition postprocessor {selected!r} specified"
+                )
+
         self._state_cache = StateCache(
-            metrics=self._metrics, transition_debounce_window=transition_debounce_window
+            metrics=self._metrics,
+            transition_debounce_window=transition_debounce_window,
+            transition_postprocessor=transition_postprocessor,
         )
         self._last_overall_state = State.UNKNOWN
 

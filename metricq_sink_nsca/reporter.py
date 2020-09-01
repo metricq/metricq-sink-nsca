@@ -136,6 +136,9 @@ class ReporterSink(metricq.DurableSink):
             convert_with=Timedelta.from_string,
             default=None,
         )
+        transition_postprocessing = config_get(
+            "transition_postprocessing", default=None
+        )
 
         logger.info(
             f'Setting up check "{name}" with '
@@ -143,7 +146,8 @@ class ReporterSink(metricq.DurableSink):
             f"timeout={timeout!r}, "
             f"plugins={list(plugins.keys())},"
             f"resend_interval={resend_interval} and "
-            f"transition_debounce_window={transition_debounce_window} "
+            f"transition_debounce_window={transition_debounce_window} and"
+            f"transition_postprocessing={transition_postprocessing}"
         )
         return Check(
             name=name,
@@ -154,6 +158,7 @@ class ReporterSink(metricq.DurableSink):
             on_timeout=self._on_check_timeout,
             plugins=plugins,
             transition_debounce_window=transition_debounce_window,
+            transition_postprocessing=transition_postprocessing,
         )
 
     def _add_check(self, name: str, config: dict):

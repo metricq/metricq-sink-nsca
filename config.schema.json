@@ -96,6 +96,42 @@
             "transition_debounce_window": {
                 "$ref": "#/definitions/duration"
             },
+            "transition_postprocessing": {
+                "type": "object",
+                "allOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "oneOf": [
+                            {
+                                "properties": {
+                                    "type": {
+                                        "const": "debounce"
+                                    }
+                                }
+                            },
+                            {
+                                "properties": {
+                                    "type": {
+                                        "const": "ignore_short_transitions"
+                                    },
+                                    "minimum_duration": {
+                                        "$ref": "#/definitions/duration"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "description": "If a check enters a new state for less than this duration, ignore the transition and keep the previous state",
+                "$ref": "#/definitions/duration"
+            },
             "plugins": {
               "type": "object",
               "description": "A collection of plugin files to be loaded for this check",
