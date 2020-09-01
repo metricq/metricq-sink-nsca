@@ -22,6 +22,7 @@ from abc import ABC, abstractmethod
 from bisect import bisect_left
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
+from dataclasses import replace as dataclass_replace
 from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple, Union
 
 from metricq.types import Timedelta, Timestamp
@@ -32,7 +33,7 @@ from .state import State
 logger = get_logger(__name__)
 
 
-@dataclass(order=True)
+@dataclass(order=True, frozen=True)
 class StateTransition:
     """A state transition where up until ``time``, a metric resided in state
     ``state``.
@@ -227,7 +228,7 @@ class StateTransitionHistory:
         if self.is_empty():
             return
 
-        candidate_transition = self._transitions[-1]
+        candidate_transition = dataclass_replace(self._transitions[-1])
 
         # Iterate over all transitions, in reverse order, starting with the second to last.
         # The `candidate_transition` marks the last transition in a chain of transitions
