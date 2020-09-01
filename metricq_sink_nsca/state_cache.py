@@ -21,7 +21,7 @@
 from bisect import bisect_left
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
 from metricq.types import Timedelta, Timestamp
 
@@ -167,7 +167,7 @@ class StateTransitionHistory:
         """
         # We might only calculate prevalences of states if we already set an
         # epoch and there exists at least one transition.
-        if self._epoch is None or len(self._transitions) < 1:
+        if self.is_empty():
             return None
 
         # Determine the first timestamp for calculating the cumulative duration
@@ -197,6 +197,66 @@ class StateTransitionHistory:
             }
         except ZeroDivisionError:
             return None
+
+    def squashed(self) -> Iterator[Tuple[StateTransition, Timedelta]]:
+        """Returns an iterator over the latest state transitions, together with
+        the total duration of the transitioned-from state.
+
+        The iterator yields transitions *newest to oldest*, not the other way around.
+        Any transitions that did not actually change the state (i.e. where
+        transitioned-from and transitioned-to state are the same) are squashed,
+        their duration is added to the total duration.
+
+        An empty history returns an empty iterator.
+
+        A StateTransitionHistory does not squash states which do change state on insertion.
+        Use this method if you want to answer questions like "How long has this
+        metric been in the current state?" and "What was the the previous
+        state, diffent from the current one, and how long did it last?":
+
+        >>> # Answer the first question:
+        >>> (current_state, duration) = next(history.squashed())
+        (State.WARNING, <Timedelta ...>)
+
+        >>> # ...and the second question:
+        >>> (previous_state, duration) = next(next(history.squashed()))
+        (State.OK, <Timedelta ...>)
+
+        """
+        if self.is_empty():
+            return
+
+        candidate_transition = self._transitions[-1]
+
+        # Iterate over all transitions, in reverse order, starting with the second to last.
+        # The `candidate_transition` marks the last transition in a chain of transitions
+        # `S -> S -> ... -> S` for some state `S`.  We aim to squash this chain.
+        # Skip a transition preceeding the candidate as long as it did not change state.
+        # If it did, compute the total duration that the candidate state lasted
+        # using the fact that state `S` was entered at `candidate.time` and
+        # left at `candidate_transition.time`:
+        #
+        #    ┄┄┄┄┄┄╮┄┄┄┄┄┄┄╮
+        #          │       │┄┄┄┄┄┄┄╮      ┄┄┄┄┄┄┄╮┄┄┄┄┄┄┄╮
+        #          │   T   │   S   │  ⋯      S   │   S   │ ⋯
+        #   ⋯──────┴───────┴───────┴─────────────┴───────┴──────→ time
+        #                  ↑                             ↑
+        #           transition.time            candidate_transition.time
+        #
+        # After that, recorded the current transition as a new candidate, since
+        # it marks the time when the metric left some state; i.e. it is at the
+        # start of its own chain of transitions `T -> T -> ... -> T`.
+        for transition in self._transitions[-2::-1]:
+            if transition.state == candidate_transition.state:
+                continue
+            else:
+                yield (
+                    candidate_transition,
+                    candidate_transition.time - transition.time,
+                )
+                candidate_transition = transition
+        else:
+            yield (candidate_transition, candidate_transition.time - self.epoch)
 
     def __repr__(self):
         return f"{type(self).__name__}(window={self._time_window}, transitions={self._transitions})"
