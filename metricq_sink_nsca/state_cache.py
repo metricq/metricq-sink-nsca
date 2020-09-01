@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
+from abc import ABC, abstractmethod
 from bisect import bisect_left
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
@@ -262,17 +263,58 @@ class StateTransitionHistory:
         return f"{type(self).__name__}(window={self._time_window}, transitions={self._transitions})"
 
 
+class TransitionPostprocessor(ABC):
+    @abstractmethod
+    def process(
+        self,
+        current_state: State,
+        timestamp: Timestamp,
+        history: StateTransitionHistory,
+    ) -> State:
+        return current_state
+
+
+class TransitionDebounce(TransitionPostprocessor):
+    def __init__(self, **_kwargs):
+        pass
+
+    def process(
+        self,
+        current_state: State,
+        timestamp: Timestamp,
+        history: StateTransitionHistory,
+    ) -> State:
+        prevalences = history.state_prevalences()
+
+        if prevalences is None:
+            return current_state
+        else:
+            # Debounce state transitions by using the 'median' state,
+            # sampled over the whole history.
+            cumulative_prevalence = 0.0
+            for some_state in State:
+                cumulative_prevalence += prevalences[some_state]
+                if cumulative_prevalence >= 0.5:
+                    return some_state
+            else:
+                return current_state
+
+
 class StateCache:
     def __init__(
         self,
         metrics: Iterable[str],
         transition_debounce_window: Optional[Timedelta] = None,
+        transition_postprocessor: Optional[TransitionPostprocessor] = None,
     ):
         metrics = tuple(metrics)
         self._transition_histories: Dict[str, StateTransitionHistory] = {
             metric: StateTransitionHistory(time_window=transition_debounce_window)
             for metric in metrics
         }
+        self._transition_postprocessor: TransitionPostprocessor = (
+            transition_postprocessor or TransitionDebounce()
+        )
         self._by_state: Dict[State, Set[str]] = {
             State.OK: set(),
             State.WARNING: set(),
@@ -294,27 +336,16 @@ class StateCache:
             )
 
         metric_history.insert(time=timestamp, state=state)
-        prevalences = metric_history.state_prevalences()
-
-        if prevalences is None:
-            median_state = state
-        else:
-            # Debounce state transitions by using the 'median' state,
-            # sampled over the last X seconds.
-            cumulative_prevalence = 0.0
-            for some_state in State:
-                cumulative_prevalence += prevalences[some_state]
-                if cumulative_prevalence >= 0.5:
-                    median_state = some_state
-                    break
-
-            if median_state != state:
-                logger.debug(
-                    f"Debounced transition for {metric!r}: "
-                    f"{state} ({prevalences[state]:3.0%}) "
-                    f"-> {median_state} ({prevalences[median_state]:3.0%})"
-                )
-        self._update_cache(metric, median_state)
+        postprocessed_state = self._transition_postprocessor.process(
+            state, timestamp, metric_history
+        )
+        if postprocessed_state != state:
+            logger.debug(
+                f"{type(self._transition_postprocessor).__name__}: "
+                f"adjusted transition for {metric!r}: "
+                f"{state} -> {postprocessed_state}"
+            )
+        self._update_cache(metric, postprocessed_state)
 
     def _update_cache(self, metric: str, state: State):
         self._timed_out.pop(metric, None)
