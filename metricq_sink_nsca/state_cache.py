@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from bisect import bisect_left
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
-from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
+from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple, Union
 
 from metricq.types import Timedelta, Timestamp
 
@@ -298,6 +298,33 @@ class TransitionDebounce(TransitionPostprocessor):
                     return some_state
             else:
                 return current_state
+
+
+class IgnoreShortTransitions(TransitionPostprocessor):
+    def __init__(self, minimum_duration: Union[Timedelta, str], **_kwargs):
+        self._minimum_duration = (
+            Timedelta.from_string(minimum_duration)
+            if isinstance(minimum_duration, str)
+            else minimum_duration
+        )
+
+    def process(
+        self,
+        current_state: State,
+        _timestamp: Timestamp,
+        history: StateTransitionHistory,
+    ) -> State:
+        try:
+            squashed_states = history.squashed()
+            (_, current_duration) = next(squashed_states)
+            (previous_state, _) = next(squashed_states)
+
+            if current_duration < self._minimum_duration:
+                return previous_state
+            else:
+                current_state
+        except StopIteration:
+            return current_state
 
 
 class StateCache:
