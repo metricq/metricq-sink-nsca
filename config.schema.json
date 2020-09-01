@@ -125,6 +125,18 @@
                                         "$ref": "#/definitions/duration"
                                     }
                                 }
+                            },
+                            {
+                                "description": "Ignore a number of consecutive bad states",
+                                "properties": {
+                                    "type": {
+                                        "const": "soft_fail"
+                                    },
+                                    "max_fail_count": {
+                                        "type": "integer",
+                                        "description": "The number of consecutive bad states that are ignored in favour of the preceeding good state"
+                                    }
+                                }
                             }
                         ]
                     }

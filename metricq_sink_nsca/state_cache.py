@@ -328,6 +328,52 @@ class IgnoreShortTransitions(TransitionPostprocessor):
             return current_state
 
 
+class SoftFail(TransitionPostprocessor):
+    """Ignore a number of consecutive bad states
+
+    Args:
+        max_fail_count:
+            The number of consecutive bad states that are ignored in favour of
+            the preceeding good state.
+            If, for example, set to :code:`max_fail_count=3` the first three
+            :literal:`State.WARNING` states after a :literal:`State.OK` are
+            ignored and :literal:`State.OK` is returned.
+            The fourth :literal:`State.WARNING` state however is returned unaltered.
+    """
+
+    def __init__(self, max_fail_count: int, **_kwargs):
+        self._max_fail_count = max_fail_count
+
+    def process(
+        self,
+        current_state: State,
+        _timestamp: Timestamp,
+        history: StateTransitionHistory,
+    ) -> State:
+        for transition, _ in zip(
+            reversed(history.transitions), range(self._max_fail_count + 1)
+        ):
+            if transition.state < current_state:
+                logger.debug(
+                    f"Masking bad state {current_state.name} with recent good state {transition.state.name}"
+                )
+                return transition.state
+        else:
+            history_len = len(history.transitions)
+            if history_len <= self._max_fail_count:
+                logger.warning(
+                    f"SoftFail is inconclusive: "
+                    f"history contains only {history_len} transitions, "
+                    f"need at least {self._max_fail_count + 1}!"
+                )
+
+            if current_state != State.OK:
+                logger.debug(
+                    f"The last {self._max_fail_count} states were at least as bad as {current_state.name}, not masking!"
+                )
+            return current_state
+
+
 class StateCache:
     def __init__(
         self,

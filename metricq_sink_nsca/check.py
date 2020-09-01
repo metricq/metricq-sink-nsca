@@ -28,6 +28,7 @@ from .plugin import load as load_plugin
 from .state import State
 from .state_cache import (
     IgnoreShortTransitions,
+    SoftFail,
     StateCache,
     TransitionDebounce,
     TransitionPostprocessor,
@@ -89,6 +90,7 @@ class Check:
             POSTPROCESSORS = {
                 "debounce": TransitionDebounce,
                 "ignore_short_transitions": IgnoreShortTransitions,
+                "soft_fail": SoftFail,
             }
             try:
                 selected = transition_postprocessing.get("type", "debounce")
