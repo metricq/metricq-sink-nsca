@@ -89,6 +89,29 @@ class StateTransitionHistory:
                     "State transition history time window must be a positive duration"
                 )
 
+    @property
+    def epoch(self) -> Optional[Timestamp]:
+        """The point in time at which we assume the metric entered the state given by the first transition, if present.
+
+        As transitions have last semantics, without an epoch we would have to
+        assume that a metric was in its first recorded state state since
+        forever (which skews statistics significantly, as you can imagine).
+        """
+        return self._epoch
+
+    @property
+    def transitions(self) -> List[StateTransition]:
+        """A (possibly empty) list of state transitions that occured so far.
+
+        The first transition, farthest back in time, is recorded in :code:`self.transitions[0]`.
+        The latest transitions is placed in :code:`self.transitions[-1]`.
+        """
+        return self._transitions
+
+    def is_empty(self) -> bool:
+        """A state transition history is empty if no epoch is set or no transitions have been inserted."""
+        return self._epoch is None or len(self._transitions) < 1
+
     def insert(self, time: Timestamp, state: State):
         """Insert a transition that happened at ``time``, away from state
         ``state``, towards some other, unknown state.
