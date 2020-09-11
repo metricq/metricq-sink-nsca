@@ -2,3 +2,6 @@ include *.json
 include *.yaml
 recursive-include examples *.py
 recursive-include tests *.py
+
+# only useful in a git repo
+exclude .git-blame-ignore-revs
