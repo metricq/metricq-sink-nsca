@@ -31,4 +31,5 @@ force_grid_wrap = 0
 use_parentheses = true
 line_length = 88
 known_tests = "tests"
+order_by_type = true
 sections = "FUTURE,STDLIB,THIRDPARTY,FIRSTPARTY,TESTS,LOCALFOLDER"
