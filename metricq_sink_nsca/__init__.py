@@ -21,3 +21,7 @@
 # pylint: disable=logging-fstring-interpolation,logging-format-interpolation
 
 from .main import main
+
+__all__ = [
+    "main",
+]

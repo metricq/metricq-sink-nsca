@@ -34,11 +34,11 @@ class TimeoutCheck:
         self,
         timeout: Timedelta,
         on_timeout: Coroutine,
-        grace_period: Timedelta = Timedelta(0),
+        grace_period: Optional[Timedelta] = None,
     ):
         self._timeout = timeout
         self._on_timeout_callback = on_timeout
-        self._grace_period = grace_period
+        self._grace_period = Timedelta(0) if grace_period is None else grace_period
 
         self._last_timestamp: Optional[Timestamp] = None
         self._new_timestamp_event: Event = Event()

@@ -19,7 +19,7 @@
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
 import math
-from typing import Iterable
+from typing import Iterable, Optional
 
 from .state import State
 
@@ -59,7 +59,7 @@ class ValueCheck:
         warning_above: float = math.inf,
         critical_below: float = -math.inf,
         critical_above: float = math.inf,
-        ignore: Iterable[float] = set(),
+        ignore: Optional[Iterable[float]] = None,
     ):
         if not (critical_below <= warning_below < warning_above <= critical_above):
             raise ValueError(
@@ -70,7 +70,7 @@ class ValueCheck:
 
         self._warning_range = AbnormalRange(low=warning_below, high=warning_above)
         self._critical_range = AbnormalRange(low=critical_below, high=critical_above)
-        self._ignore = set(ignore)
+        self._ignore = set() if ignore is None else set(ignore)
 
     @property
     def warning_range(self):

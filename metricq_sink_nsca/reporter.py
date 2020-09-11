@@ -52,6 +52,9 @@ class NscaReport:
     message: str
 
 
+DEFAULT_HOSTNAME = gethostname()
+
+
 class ReporterSink(metricq.DurableSink):
     """Sink that dispatches Nagios/Centreon check results via send_nsca."""
 
@@ -69,7 +72,7 @@ class ReporterSink(metricq.DurableSink):
         if not self._checks:
             return
 
-        logger.info(f"Cancelling running checks...")
+        logger.info("Cancelling running checks...")
         check: Check
         for name, check in self._checks.items():
             logger.info(f'Cancelling check "{name}"')
@@ -92,7 +95,7 @@ class ReporterSink(metricq.DurableSink):
 
         metrics = config.get("metrics")
         if metrics is None:
-            raise ValueError(f"Check does not contain any metrics")
+            raise ValueError("Check does not contain any metrics")
 
         if not (
             isinstance(metrics, list)
@@ -100,7 +103,7 @@ class ReporterSink(metricq.DurableSink):
             and all(isinstance(m, str) for m in metrics)
         ):
             raise ValueError(
-                f'Configured key "metrics" must be a nonempty list of metric names'
+                'Configured key "metrics" must be a nonempty list of metric names'
             )
 
         # extract ranges for warnable and critical values from the config,
@@ -208,7 +211,7 @@ class ReporterSink(metricq.DurableSink):
         )
         logger.info(f"Subscribing to {len(metrics)} metric(s)...")
         await self.subscribe(metrics=metrics)
-        logger.info(f"Successfully subscribed to all required metrics")
+        logger.info("Successfully subscribed to all required metrics")
 
     async def subscribe(self, metrics: Iterable[str], **kwargs) -> None:
         return await super().subscribe(metrics=list(metrics), **kwargs)
@@ -219,7 +222,7 @@ class ReporterSink(metricq.DurableSink):
         *,
         checks,
         nsca: dict,
-        reporting_host: str = gethostname(),
+        reporting_host: str = DEFAULT_HOSTNAME,
         resend_interval: str = "3min",
         **_kwargs,
     ) -> None:
