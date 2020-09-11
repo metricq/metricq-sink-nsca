@@ -19,10 +19,10 @@
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
-from asyncio import Event, CancelledError
+from asyncio import CancelledError, Event
+from typing import Coroutine, Optional
 
 from metricq.types import Timedelta, Timestamp
-from typing import Optional, Coroutine
 
 from .logging import get_logger
 

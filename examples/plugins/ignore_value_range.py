@@ -1,9 +1,10 @@
-from metricq import Timestamp
-from metricq_sink_nsca.state import State
-
-from typing import Set
 from logging import getLogger
 from math import inf
+from typing import Set
+
+from metricq import Timestamp
+
+from metricq_sink_nsca.state import State
 
 logger = getLogger(__name__)
 

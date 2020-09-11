@@ -23,8 +23,6 @@ from typing import Iterable
 
 from .state import State
 
-from .state import State
-
 
 class AbnormalRange:
     def __init__(self, low: float = -math.inf, high: float = math.inf):

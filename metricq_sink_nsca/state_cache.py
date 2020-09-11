@@ -18,14 +18,15 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import Dict, Optional, Set, List, Iterable
-from dataclasses import dataclass, field as dataclass_field
 from bisect import bisect_left
+from dataclasses import dataclass
+from dataclasses import field as dataclass_field
+from typing import Dict, Iterable, List, Optional, Set
 
-from metricq.types import Timestamp, Timedelta
+from metricq.types import Timedelta, Timestamp
 
-from .state import State
 from .logging import get_logger
+from .state import State
 
 logger = get_logger(__name__)
 

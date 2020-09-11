@@ -18,16 +18,17 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import Iterable, Dict, Optional, Coroutine, Set, NamedTuple
+from typing import Coroutine, Dict, Iterable, NamedTuple, Optional, Set
 
 from metricq.types import Timedelta, Timestamp
 
-from .value_check import ValueCheck
-from .timeout_check import TimeoutCheck
-from .plugin import Plugin, load as load_plugin
 from .logging import get_logger
+from .plugin import Plugin
+from .plugin import load as load_plugin
 from .state import State
 from .state_cache import StateCache
+from .timeout_check import TimeoutCheck
+from .value_check import ValueCheck
 
 logger = get_logger(__name__)
 
@@ -81,9 +82,9 @@ class Check:
         )
         self._last_overall_state = State.UNKNOWN
 
-        self._value_check: Optional[ValueCheck] = ValueCheck(
-            **value_constraints
-        ) if value_constraints is not None else None
+        self._value_check: Optional[ValueCheck] = (
+            ValueCheck(**value_constraints) if value_constraints is not None else None
+        )
         self._timeout_checks: Optional[Dict[str, TimeoutCheck]] = None
         self._on_timeout_callback: Optional[Coroutine] = None
 

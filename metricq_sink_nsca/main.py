@@ -1,9 +1,10 @@
-from .reporter import ReporterSink
-from .logging import get_logger
+import logging
 
 import click
 import click_log
-import logging
+
+from .logging import get_logger
+from .reporter import ReporterSink
 
 
 def verbosity_option(logger: logging.Logger, *names, **kwargs):

@@ -19,16 +19,17 @@
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
-from math import isnan
-from typing import Dict, Iterable, Optional, List
-from socket import gethostname
+from dataclasses import dataclass
+from dataclasses import fields as dataclass_fields
 from itertools import accumulate
-from dataclasses import dataclass, fields as dataclass_fields
+from math import isnan
+from socket import gethostname
+from typing import Dict, Iterable, List, Optional
 
 import metricq
-from metricq import Timestamp, Timedelta
+from metricq import Timedelta, Timestamp
 
-from .check import Check, TvPair, CheckReport
+from .check import Check, CheckReport, TvPair
 from .logging import get_logger
 from .state import State
 
@@ -52,8 +53,7 @@ class NscaReport:
 
 
 class ReporterSink(metricq.DurableSink):
-    """Sink that dispatches Nagios/Centreon check results via send_nsca.
-    """
+    """Sink that dispatches Nagios/Centreon check results via send_nsca."""
 
     def __init__(self, *args, **kwargs):
         # these are configured after connecting, see _configure().
@@ -273,8 +273,7 @@ class ReporterSink(metricq.DurableSink):
         await self._bump_timeout_checks(metric, last_timestamp)
 
     async def on_data(self, _metric, _timestamp, _value):
-        """Functionality implemented in _on_data_chunk
-        """
+        """Functionality implemented in _on_data_chunk"""
 
     async def _check_values(self, metric: str, tv_pairs: List[TvPair]) -> None:
         reports = list()

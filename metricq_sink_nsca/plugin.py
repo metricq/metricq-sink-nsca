@@ -1,7 +1,7 @@
 import importlib
-from typing import Set, Callable, Iterable
-from types import ModuleType
 from abc import ABC, abstractmethod
+from types import ModuleType
+from typing import Callable, Iterable, Set
 
 from metricq import Timestamp
 
@@ -9,8 +9,7 @@ from .state import State
 
 
 class Plugin(ABC):
-    """Base class exposing the interface to a plugin instance loaded from a file.
-    """
+    """Base class exposing the interface to a plugin instance loaded from a file."""
 
     @abstractmethod
     def check(
