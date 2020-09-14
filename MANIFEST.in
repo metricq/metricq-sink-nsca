@@ -5,3 +5,12 @@ recursive-include tests *.py
 
 # only useful in a git repo
 exclude .git-blame-ignore-revs
+
+# Sphinx documentation
+include docs/conf.py
+include docs/spelling_wordlist.txt
+include docs/Makefile
+include docs/make.bat
+include docs/.nojekyll
+recursive-include docs *.rst
+recursive-include docs *.json
