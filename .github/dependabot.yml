@@ -1,0 +1,8 @@
+version: 2
+updates:
+  - directory: "/"
+    package-ecosystem: github-actions
+    schedule:
+      time: "09:00"
+      timezone: "Europe/Berlin"
+      interval: weekly
