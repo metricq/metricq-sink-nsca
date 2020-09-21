@@ -261,7 +261,7 @@ class StateTransitionHistory:
             yield (candidate_transition, candidate_transition.time - self.epoch)
 
     def __repr__(self):
-        return f"{type(self).__name__}(window={self._time_window}, transitions={self._transitions})"
+        return f"{type(self).__name__}(window={self._time_window}, epoch={self._epoch}, transitions={self._transitions})"
 
 
 class TransitionPostprocessor(ABC):
