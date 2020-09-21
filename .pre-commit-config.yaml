@@ -21,6 +21,6 @@ repos:
         - "--check"
         - "--diff"
 - repo: https://github.com/mgedmin/check-manifest
-  rev: "0.42"
+  rev: "0.43"
   hooks:
     - id: check-manifest
