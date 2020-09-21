@@ -64,6 +64,7 @@ class ReporterSink(metricq.DurableSink):
         self._nsca_config: Optional[NscaConfig] = None
         self._checks: Dict[str, Check] = dict()
         self._check_configs: Dict[str] = dict()
+        self._has_value_checks: bool = False
         self._global_resend_interval: Optional[Timedelta] = None
 
         super().__init__(*args, **kwargs)
@@ -249,12 +250,25 @@ class ReporterSink(metricq.DurableSink):
         else:
             self._update_checks(checks)
 
+        c: Check
+        self._has_value_checks = any(
+            c._has_value_checks() for c in self._checks.values()
+        )
+
         logger.info(
             f"Configured NSCA reporter sink for host {self._reporting_host} and checks {', '.join(self._checks)!r}"
         )
         logger.debug(f"NSCA config: {self._nsca_config!r}")
 
     async def _on_data_chunk(self, metric: str, data_chunk):
+        # Fast-path if there are no value checks: do not decode the whole data
+        # chunk, only extract the last timestamp and bump timeout checks.
+        if not self._has_value_checks:
+            if len(data_chunk.time_delta) > 0:
+                last_timestamp = Timestamp(sum(data_chunk.time_delta))
+                await self._bump_timeout_checks(metric, last_timestamp)
+            return
+
         tv_pairs = [
             TvPair(timestamp=Timestamp(t), value=v)
             for t, v in zip(accumulate(data_chunk.time_delta), data_chunk.value)
