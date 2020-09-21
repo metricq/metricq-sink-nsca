@@ -14,18 +14,6 @@ def empty_transition_history():
     return StateTransitionHistory(time_window=Timedelta.from_s(60))
 
 
-def seconds_ticker():
-    secs = 0
-    while True:
-        yield Timestamp.from_posix_seconds(secs)
-        secs += 1
-
-
-@pytest.fixture
-def ticker():
-    return seconds_ticker()
-
-
 @pytest.mark.parametrize(
     "max_fail_count, transitions",
     [
@@ -74,7 +62,7 @@ def test_soft_fail(empty_transition_history, ticker, max_fail_count, transitions
     ts: Timestamp
     state: State
     expected: State
-    for (ts, (state, expected)) in zip(seconds_ticker(), transitions):
+    for (ts, (state, expected)) in zip(ticker, transitions):
         history.insert(ts, state)
         processed_state = soft_fail.process(state, ts, history)
         logger.info(f"ts={ts}, state={state}, processed_state={processed_state}")
