@@ -1,8 +1,12 @@
+from logging import getLogger
+
 import pytest
 from metricq.types import Timedelta, Timestamp
 
 from metricq_sink_nsca.state import State
 from metricq_sink_nsca.state_cache import StateTransitionHistory
+
+logger = getLogger(__name__)
 
 
 @pytest.fixture
@@ -60,3 +64,24 @@ def test_history_non_monotonous(history_with_epoch_set, delta):
     next_ts = ts + delta
     with pytest.raises(ValueError):
         history_with_epoch_set.insert(next_ts, State.OK)
+
+
+@pytest.mark.parametrize(
+    "ticker", [Timedelta.from_string("30s"), Timedelta(1)], indirect=True
+)
+@pytest.mark.parametrize("expected_history_items", [0, 1, 3])
+def test_history_length(ticker, expected_history_items):
+    history = StateTransitionHistory(
+        time_window=ticker.delta * (expected_history_items + 1)
+    )
+
+    epoch = next(ticker)
+    history.insert(epoch, State.OK)
+
+    assert history.epoch == epoch
+
+    for (timestamp, _) in zip(ticker, range(expected_history_items)):
+        history.insert(timestamp, State.OK)
+
+    logger.info(f"history={history!r}")
+    assert len(history.transitions) == expected_history_items
