@@ -58,7 +58,9 @@ DEFAULT_HOSTNAME = gethostname()
 class ReporterSink(metricq.DurableSink):
     """Sink that dispatches Nagios/Centreon check results via send_nsca."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, dry_run: bool = False, *args, **kwargs):
+        self._dry_run: bool = dry_run
+
         # these are configured after connecting, see _configure().
         self._reporting_host: str = None
         self._nsca_config: Optional[NscaConfig] = None
@@ -319,6 +321,9 @@ class ReporterSink(metricq.DurableSink):
             return
 
         logger.debug(f"Sending {len(reports)} report(s)")
+
+        if self._dry_run:
+            return
 
         report: NscaReport
         report_blocks = list()

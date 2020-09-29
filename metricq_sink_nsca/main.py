@@ -51,7 +51,8 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.option("--metricq-server", "-s", default="amqp://localhost/")
 @click.option("--token", "-t", default="sink-nsca")
+@click.option("--dry-run", "-n", is_flag=True)
 @verbosity_option(root_logger)
-def main(metricq_server, token):
-    reporter = ReporterSink(management_url=metricq_server, token=token)
+def main(metricq_server, token, dry_run):
+    reporter = ReporterSink(dry_run=dry_run, management_url=metricq_server, token=token)
     reporter.run(cancel_on_exception=True)
