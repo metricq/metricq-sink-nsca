@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
+from asyncio import Task, create_task, sleep
 from typing import Coroutine, Dict, Iterable, NamedTuple, Optional, Set
 
 from metricq.types import Timedelta, Timestamp
@@ -56,8 +57,8 @@ class Check:
         metrics: Iterable[str],
         value_constraints: Optional[Dict[str, float]],
         resend_interval: Timedelta,
+        send_result_callback: Coroutine,
         timeout: Optional[Timedelta] = None,
-        on_timeout: Optional[Coroutine] = None,
         plugins: Optional[Dict[str, Dict]] = None,
         transition_debounce_window: Optional[Timedelta] = None,
         transition_postprocessing: Optional[Dict] = None,
@@ -73,10 +74,10 @@ class Check:
         :param value_constraints: Dictionary indicating warning and critical
             value ranges, see ValueCheck.  If omitted, this check does not care
             for which values its metrics report.
+        :param send_result_callback: Callback to run when check needs to send
+            results asynchronously.
         :param timeout: If set, and a metric does not deliver values within
             this duration, run the callback on_timeout
-        :param on_timeout: Callback to run when metrics do not deliver values
-            in time, mandatory if timeout is given.
         :param plugins: A dictionary containing plugin configurations by name
         :param transition_debounce_window: Time window in which state
             transitions are debounced.
@@ -113,14 +114,11 @@ class Check:
             ValueCheck(**value_constraints) if value_constraints is not None else None
         )
         self._timeout_checks: Optional[Dict[str, TimeoutCheck]] = None
-        self._on_timeout_callback: Optional[Coroutine] = None
+        self._send_result_callback: Coroutine = send_result_callback
 
         self._timeout = None
         if timeout is not None:
-            if on_timeout is None:
-                raise ValueError("on_timeout callback is required if timeout is given")
             self._timeout = timeout
-            self._on_timeout_callback = on_timeout
             self._timeout_checks = {
                 metric: TimeoutCheck(
                     self._timeout, self._get_on_timeout_callback(metric)
@@ -128,6 +126,7 @@ class Check:
                 for metric in self._metrics
             }
 
+        self._heartbeat_task: Task = create_task(self._heartbeat())
         self._resend_interval: Timedelta = resend_interval
         self._last_report_triggered_time: Optional[Timestamp] = None
 
@@ -164,6 +163,23 @@ class Check:
     def _has_timeout_checks(self) -> bool:
         return self._timeout_checks is not None
 
+    async def _heartbeat(self):
+        while True:
+            await sleep(self._resend_interval.s)
+            now = Timestamp.now()
+            (state, message) = self.format_overall_state()
+
+            self._last_report_triggered_time = now
+
+            logger.debug("Sending heartbeat")
+            # fire and forget
+            create_task(
+                self._send_result_callback(
+                    check_name=self._name, state=state, message=message
+                ),
+                name=f"{self._name}._heartbeat.send_report.{now.posix}",
+            )
+
     def _should_trigger_report(self) -> bool:
         # Update overall state of this Check.
         new_state = self._state_cache.overall_state()
@@ -192,7 +208,7 @@ class Check:
             self._state_cache.set_timed_out(metric, last_timestamp)
             if self._should_trigger_report():
                 state, message = self.format_overall_state()
-                await self._on_timeout_callback(
+                await self._send_result_callback(
                     check_name=self._name, state=state, message=message
                 )
 
@@ -307,6 +323,10 @@ class Check:
                 self._timeout_checks[metric].bump(timestamp)
             except KeyError:
                 raise ValueError(f'Metric "{metric}" not known to check')
+
+    def cancel(self):
+        self.cancel_timeout_checks()
+        self._heartbeat_task.cancel()
 
     def cancel_timeout_checks(self) -> None:
         if self._has_timeout_checks():

@@ -79,7 +79,7 @@ class ReporterSink(metricq.DurableSink):
         check: Check
         for name, check in self._checks.items():
             logger.info(f'Cancelling check "{name}"')
-            check.cancel_timeout_checks()
+            check.cancel()
 
         self._checks = dict()
 
@@ -156,8 +156,8 @@ class ReporterSink(metricq.DurableSink):
             metrics=metrics,
             value_constraints=value_constraints,
             resend_interval=resend_interval,
+            send_result_callback=self._on_check_result,
             timeout=timeout,
-            on_timeout=self._on_check_timeout,
             plugins=plugins,
             transition_debounce_window=transition_debounce_window,
             transition_postprocessing=transition_postprocessing,
@@ -394,7 +394,7 @@ class ReporterSink(metricq.DurableSink):
             )
         )
 
-    async def _on_check_timeout(self, check_name: str, state: State, message: str):
+    async def _on_check_result(self, check_name: str, state: State, message: str):
         logger.warning(f"Check {check_name!r} is {state.name}: {message}")
         await self._send_reports(
             NscaReport(
