@@ -27,11 +27,14 @@ from socket import gethostname
 from typing import Dict, Iterable, List, Optional
 
 import metricq
+import pkg_resources
 from metricq import Timedelta, Timestamp
 
 from .check import Check, CheckReport, TvPair
 from .logging import get_logger
 from .state import State
+
+__version__ = pkg_resources.get_distribution("metricq-sink-nsca").version
 
 logger = get_logger(__name__)
 
