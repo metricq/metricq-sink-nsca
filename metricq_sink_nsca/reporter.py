@@ -24,14 +24,15 @@ from dataclasses import fields as dataclass_fields
 from itertools import accumulate
 from math import isnan
 from socket import gethostname
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, Optional
 
 import metricq
 import pkg_resources
 from metricq import Timedelta, Timestamp
 
-from .check import Check, CheckReport, TvPair
+from .check import Check, TvPair
 from .logging import get_logger
+from .report_queue import Report, ReportQueue
 from .state import State
 
 __version__ = pkg_resources.get_distribution("metricq-sink-nsca").version
@@ -71,6 +72,8 @@ class ReporterSink(metricq.DurableSink):
         self._check_configs: Dict[str] = dict()
         self._has_value_checks: bool = False
         self._global_resend_interval: Optional[Timedelta] = None
+        self._report_queue = ReportQueue()
+        self._send_reports_task: Optional[asyncio.Task] = None
 
         super().__init__(*args, **kwargs)
 
@@ -157,10 +160,10 @@ class ReporterSink(metricq.DurableSink):
         return Check(
             name=name,
             metrics=metrics,
+            report_queue=self._report_queue,
             value_constraints=value_constraints,
             resend_interval=resend_interval,
             timeout=timeout,
-            on_timeout=self._on_check_timeout,
             plugins=plugins,
             transition_debounce_window=transition_debounce_window,
             transition_postprocessing=transition_postprocessing,
@@ -223,6 +226,8 @@ class ReporterSink(metricq.DurableSink):
         logger.info(f"Subscribing to {len(metrics)} metric(s)...")
         await self.subscribe(metrics=metrics)
         logger.info("Successfully subscribed to all required metrics")
+
+        self._send_reports_task = asyncio.create_task(self._send_reports_loop())
 
     async def subscribe(self, metrics: Iterable[str], **kwargs) -> None:
         return await super().subscribe(metrics=list(metrics), **kwargs)
@@ -291,7 +296,8 @@ class ReporterSink(metricq.DurableSink):
 
         # check that all values in this data chunk are within the desired
         # thresholds
-        await self._check_values(metric, tv_pairs)
+        for check in self._checks.values():
+            check.check(metric, tv_pairs)
 
         # "bump" all timeout checks with the last timestamp for which we
         # received values, i.e. reset the asynchronous timers that would
@@ -301,23 +307,6 @@ class ReporterSink(metricq.DurableSink):
 
     async def on_data(self, _metric, _timestamp, _value):
         """Functionality implemented in _on_data_chunk"""
-
-    async def _check_values(self, metric: str, tv_pairs: List[TvPair]) -> None:
-        reports = list()
-        check: Check
-        for name, check in self._checks.items():
-            report: CheckReport
-            for report in check.generate_reports(metric, tv_pairs):
-                reports.append(
-                    NscaReport(
-                        host=self._reporting_host,
-                        service=name,
-                        state=report.state,
-                        message=report.message,
-                    )
-                )
-
-        await self._send_reports(*reports)
 
     async def _send_reports(self, *reports: NscaReport):
         if not reports:
@@ -389,6 +378,7 @@ class ReporterSink(metricq.DurableSink):
     async def _bump_timeout_checks(
         self, metric: str, last_timestamp: Timestamp
     ) -> None:
+        check: Check
         await asyncio.gather(
             *tuple(
                 check.bump_timeout_check(metric, last_timestamp)
@@ -397,13 +387,18 @@ class ReporterSink(metricq.DurableSink):
             )
         )
 
-    async def _on_check_timeout(self, check_name: str, state: State, message: str):
-        logger.warning(f"Check {check_name!r} is {state.name}: {message}")
-        await self._send_reports(
-            NscaReport(
-                host=self._reporting_host,
-                service=check_name,
-                state=state,
-                message=message,
-            )
-        )
+    async def _send_reports_loop(self):
+        while True:
+            report: Report
+            reports = [
+                NscaReport(
+                    host=self._reporting_host,
+                    service=report.service,
+                    state=report.state,
+                    message=report.message,
+                )
+                async for report in self._report_queue.batch(
+                    timeout=Timedelta.from_s(5)
+                )
+            ]
+            await self._send_reports(*reports)

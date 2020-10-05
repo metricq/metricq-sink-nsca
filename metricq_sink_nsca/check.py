@@ -25,6 +25,7 @@ from metricq.types import Timedelta, Timestamp
 from .logging import get_logger
 from .plugin import Plugin
 from .plugin import load as load_plugin
+from .report_queue import Report, ReportQueue
 from .state import State
 from .state_cache import (
     IgnoreShortTransitions,
@@ -44,20 +45,15 @@ class TvPair(NamedTuple):
     value: float
 
 
-class CheckReport(NamedTuple):
-    state: State
-    message: str
-
-
 class Check:
     def __init__(
         self,
         name: str,
         metrics: Iterable[str],
+        report_queue: ReportQueue,
         value_constraints: Optional[Dict[str, float]],
         resend_interval: Timedelta,
         timeout: Optional[Timedelta] = None,
-        on_timeout: Optional[Coroutine] = None,
         plugins: Optional[Dict[str, Dict]] = None,
         transition_debounce_window: Optional[Timedelta] = None,
         transition_postprocessing: Optional[Dict] = None,
@@ -66,6 +62,7 @@ class Check:
 
         :param name: The name of this check
         :param metrics: Iterable of names of metrics to monitor
+        :param report_queue: Queue to put generated reports into
         :param resend_interval: Minimum time interval at which this check should
             trigger reports, even if its overall state did not change.  This is
             useful for keeping the Centreon/Nagios host up-to-date and signaling
@@ -74,15 +71,14 @@ class Check:
             value ranges, see ValueCheck.  If omitted, this check does not care
             for which values its metrics report.
         :param timeout: If set, and a metric does not deliver values within
-            this duration, run the callback on_timeout
-        :param on_timeout: Callback to run when metrics do not deliver values
-            in time, mandatory if timeout is given.
+            this duration, a report of 'CRITICAL' severity is put into the queue.
         :param plugins: A dictionary containing plugin configurations by name
         :param transition_debounce_window: Time window in which state
             transitions are debounced.
         """
         self._name = name
         self._metrics: Set[str] = set(metrics)
+        self._report_queue = report_queue
 
         transition_postprocessor: Optional[TransitionPostprocessor] = None
 
@@ -113,18 +109,13 @@ class Check:
             ValueCheck(**value_constraints) if value_constraints is not None else None
         )
         self._timeout_checks: Optional[Dict[str, TimeoutCheck]] = None
-        self._on_timeout_callback: Optional[Coroutine] = None
 
-        self._timeout = None
+        self._timeout: Optional[Timedelta] = timeout
         if timeout is not None:
-            if on_timeout is None:
-                raise ValueError("on_timeout callback is required if timeout is given")
-            self._timeout = timeout
-            self._on_timeout_callback = on_timeout
             self._timeout_checks = {
                 metric: TimeoutCheck(
                     self._timeout, self._get_on_timeout_callback(metric)
-                )
+                ).start()
                 for metric in self._metrics
             }
 
@@ -164,46 +155,40 @@ class Check:
     def _has_timeout_checks(self) -> bool:
         return self._timeout_checks is not None
 
-    def _should_trigger_report(self) -> bool:
+    def _trigger_report(self, force: bool = False) -> None:
         # Update overall state of this Check.
         new_state = self._state_cache.overall_state()
         old_state = self._last_overall_state
         self._last_overall_state = new_state
 
-        # Has it been some time since we last triggered a report?  Every once
-        # in a while (dictated by self._resend_interval) we want to trigger a
-        # report even though the overall state did not change.  This is a
-        # compromise between always having an up-to-date report sent to the
-        # host and not spamming the host with reports.
-        now = Timestamp.now()
-        is_stale = self._last_report_triggered_time is not None and (
-            (self._last_report_triggered_time + self._resend_interval) <= now
-        )
+        if force or new_state != old_state:
+            if force:
+                logger.debug(
+                    'Check "{}" is {} (forced update)', self._name, new_state.name
+                )
+            else:
+                logger.debug(
+                    'Check "{}" changed state: {} -> {}',
+                    self._name,
+                    old_state.name,
+                    new_state.name,
+                )
 
-        should_trigger = new_state != old_state or is_stale
-        if should_trigger:
-            self._last_report_triggered_time = now
-
-        return should_trigger
+            message = self.format_report_message(new_state)
+            report = Report(service=self._name, state=new_state, message=message)
+            self._report_queue.put(report)
 
     def _get_on_timeout_callback(self, metric) -> Coroutine:
         async def on_timeout(timeout: Timedelta, last_timestamp: Optional[Timestamp]):
             logger.warning(f"Check {self._name!r}: {metric} timed out after {timeout}")
             self._state_cache.set_timed_out(metric, last_timestamp)
-            if self._should_trigger_report():
-                state, message = self.format_overall_state()
-                await self._on_timeout_callback(
-                    check_name=self._name, state=state, message=message
-                )
+            self._trigger_report()
 
         return on_timeout
 
-    def format_overall_state(self) -> (State, str):
-        overall_state = self._state_cache.overall_state()
-
-        message: str
+    def format_report_message(self, overall_state: State) -> str:
         if overall_state == State.OK:
-            message = "All metrics are OK"
+            return "All metrics are OK"
         else:
             header_line = list()
             details = list()
@@ -237,17 +222,12 @@ class Check:
 
             header_line = ", ".join(header_line)
             details = "\n".join(details)
-            message = f"{header_line}\n{details}"
+            return f"{header_line}\n{details}"
 
-        return (overall_state, message)
-
-    def check_metric(
-        self, metric: str, tv_pairs: Iterable[TvPair]
-    ) -> Iterable[CheckReport]:
+    def check_metric(self, metric: str, tv_pairs: Iterable[TvPair]) -> None:
         if metric not in self._metrics:
             raise ValueError(f'Metric "{metric}" not known to check "{self._name}"')
 
-        reports = list()
         for timestamp, value in tv_pairs:
             state = (
                 self._value_check.get_state(value)
@@ -267,20 +247,8 @@ class Check:
                 default=state,
             )
 
-            old_state = self._last_overall_state
             self._state_cache.update_state(metric, timestamp, state)
-            if self._should_trigger_report():
-                overall_state, message = self.format_overall_state()
-                if old_state != overall_state:
-                    logger.info(
-                        f'Check "{self._name}" changed state: '
-                        f"{old_state.name} -> {overall_state.name} "
-                        f"(caused by {metric!r})"
-                    )
-
-                reports.append(CheckReport(state=overall_state, message=message))
-
-        return reports
+            self._trigger_report()
 
     def update_extra_metric(self, extra_metric: str, tv_pairs: Iterable[TvPair]):
         for timestamp, value in tv_pairs:
@@ -290,16 +258,13 @@ class Check:
                         extra_metric, timestamp, value
                     )
 
-    def generate_reports(
-        self, metric: str, tv_pairs: Iterable[TvPair]
-    ) -> Iterable[CheckReport]:
+    # TODO: rename
+    def check(self, metric: str, tv_pairs: Iterable[TvPair]) -> None:
         if metric in self._extra_metrics:
             self.update_extra_metric(extra_metric=metric, tv_pairs=tv_pairs)
 
         if metric in self._metrics:
-            return self.check_metric(metric=metric, tv_pairs=tv_pairs)
-        else:
-            return list()
+            self.check_metric(metric=metric, tv_pairs=tv_pairs)
 
     async def bump_timeout_check(self, metric: str, timestamp: Timestamp) -> None:
         if self._has_timeout_checks():

@@ -45,11 +45,18 @@ class TimeoutCheck:
         self._task: asyncio.Task = asyncio.create_task(self._run())
         self._throttle = False
 
+    def start(self) -> "TimeoutCheck":
+        if self._task is not None:
+            logger.warning("TimeoutCheck already started")
+        self._task = asyncio.create_task(self._run())
+
+        return self
+
     def cancel(self):
-        logger.debug(
-            f"Cancelling task for TimeoutCheck (cancelled: {self._task.cancelled()})"
-        )
-        self._task.cancel()
+        logger.debug("Cancelling task for TimeoutCheck")
+        if self._task is not None:
+            self._task.cancel()
+        self._task = None
 
     def bump(self, last_timestamp: Timestamp):
         self._last_timestamp = last_timestamp
