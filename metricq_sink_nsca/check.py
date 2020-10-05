@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
+from asyncio import Task, create_task, sleep
 from typing import Coroutine, Dict, Iterable, NamedTuple, Optional, Set
 
 from metricq.types import Timedelta, Timestamp
@@ -120,7 +121,7 @@ class Check:
             }
 
         self._resend_interval: Timedelta = resend_interval
-        self._last_report_triggered_time: Optional[Timestamp] = None
+        self._hearbeat_task: Task = create_task(self.heartbeat())
 
         self._plugins: Dict[str, Plugin] = dict()
         self._plugins_extra_metrics: Dict[str, Set[str]] = dict()
@@ -273,10 +274,20 @@ class Check:
             except KeyError:
                 raise ValueError(f'Metric "{metric}" not known to check')
 
+    async def heartbeat(self) -> None:
+        while True:
+            await sleep(self._resend_interval.s)
+            logger.debug('Sending heartbeat for check "{}"', self._name)
+            self._trigger_report(force=True)
+
     def cancel_timeout_checks(self) -> None:
         if self._has_timeout_checks():
             for check in self._timeout_checks.values():
                 check.cancel()
+
+    def cancel(self) -> None:
+        self.cancel_timeout_checks()
+        self._hearbeat_task.cancel()
 
     def metrics(self) -> Iterable[str]:
         return self._metrics

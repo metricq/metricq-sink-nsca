@@ -85,7 +85,7 @@ class ReporterSink(metricq.DurableSink):
         check: Check
         for name, check in self._checks.items():
             logger.info(f'Cancelling check "{name}"')
-            check.cancel_timeout_checks()
+            check.cancel()
 
         self._checks = dict()
 
@@ -182,7 +182,7 @@ class ReporterSink(metricq.DurableSink):
             check: Check = self._checks.pop(name)
             if check is not None:
                 logger.debug('Removing check "{}"', name)
-                check.cancel_timeout_checks()
+                check.cancel()
 
     def _init_checks(self, check_config) -> None:
         self._checks = dict()
