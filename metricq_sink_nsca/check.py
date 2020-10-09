@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-from asyncio import Task, create_task, sleep
+from asyncio import sleep
 from typing import Coroutine, Dict, Iterable, NamedTuple, Optional, Set
 
 from metricq.types import Timedelta, Timestamp
@@ -35,6 +35,7 @@ from .state_cache import (
     TransitionDebounce,
     TransitionPostprocessor,
 )
+from .subtask import subtask
 from .timeout_check import TimeoutCheck
 from .value_check import ValueCheck
 
@@ -116,12 +117,11 @@ class Check:
             self._timeout_checks = {
                 metric: TimeoutCheck(
                     self._timeout, self._get_on_timeout_callback(metric)
-                ).start()
+                )
                 for metric in self._metrics
             }
 
         self._resend_interval: Timedelta = resend_interval
-        self._hearbeat_task: Task = create_task(self.heartbeat())
 
         self._plugins: Dict[str, Plugin] = dict()
         self._plugins_extra_metrics: Dict[str, Set[str]] = dict()
@@ -274,20 +274,26 @@ class Check:
             except KeyError:
                 raise ValueError(f'Metric "{metric}" not known to check')
 
+    @subtask
     async def heartbeat(self) -> None:
         while True:
             await sleep(self._resend_interval.s)
             logger.debug('Sending heartbeat for check "{}"', self._name)
             self._trigger_report(force=True)
 
-    def cancel_timeout_checks(self) -> None:
+    def start(self) -> None:
+        if self._has_timeout_checks():
+            for check in self._timeout_checks.values():
+                check.start()
+
+        self.heartbeat.start()
+
+    def cancel(self) -> None:
         if self._has_timeout_checks():
             for check in self._timeout_checks.values():
                 check.cancel()
 
-    def cancel(self) -> None:
-        self.cancel_timeout_checks()
-        self._hearbeat_task.cancel()
+        self.heartbeat.cancel()
 
     def metrics(self) -> Iterable[str]:
         return self._metrics

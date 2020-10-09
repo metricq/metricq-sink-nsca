@@ -34,6 +34,7 @@ from .check import Check, TvPair
 from .logging import get_logger
 from .report_queue import Report, ReportQueue
 from .state import State
+from .subtask import subtask
 
 __version__ = pkg_resources.get_distribution("metricq-sink-nsca").version
 
@@ -73,7 +74,6 @@ class ReporterSink(metricq.DurableSink):
         self._has_value_checks: bool = False
         self._global_resend_interval: Optional[Timedelta] = None
         self._report_queue = ReportQueue()
-        self._send_reports_task: Optional[asyncio.Task] = None
 
         super().__init__(*args, **kwargs)
 
@@ -173,13 +173,15 @@ class ReporterSink(metricq.DurableSink):
         if not self._checks:
             self._checks = dict()
         logger.debug('Adding check "{}"', name)
-        self._checks[name] = self._parse_check_from_config(name, config)
+        check = self._parse_check_from_config(name, config)
+        check.start()
+        self._checks[name] = check
         self._check_configs[name] = config
 
     def _remove_check(self, name: str):
         if self._checks:
             self._check_configs.pop(name)
-            check: Check = self._checks.pop(name)
+            check: Check = self._checks.pop(name, None)
             if check is not None:
                 logger.debug('Removing check "{}"', name)
                 check.cancel()
@@ -227,7 +229,7 @@ class ReporterSink(metricq.DurableSink):
         await self.subscribe(metrics=metrics)
         logger.info("Successfully subscribed to all required metrics")
 
-        self._send_reports_task = asyncio.create_task(self._send_reports_loop())
+        self._send_reports_loop.start()
 
     async def subscribe(self, metrics: Iterable[str], **kwargs) -> None:
         return await super().subscribe(metrics=list(metrics), **kwargs)
@@ -387,6 +389,7 @@ class ReporterSink(metricq.DurableSink):
             )
         )
 
+    @subtask
     async def _send_reports_loop(self):
         while True:
             report: Report

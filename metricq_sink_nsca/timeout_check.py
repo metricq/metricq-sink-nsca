@@ -25,6 +25,7 @@ from typing import Coroutine, Optional
 from metricq.types import Timedelta, Timestamp
 
 from .logging import get_logger
+from .subtask import subtask
 
 logger = get_logger(__name__)
 
@@ -42,21 +43,13 @@ class TimeoutCheck:
 
         self._last_timestamp: Optional[Timestamp] = None
         self._new_timestamp_event: Event = Event()
-        self._task: Optional[asyncio.Task] = None
         self._throttle = False
 
-    def start(self) -> "TimeoutCheck":
-        if self._task is None:
-            self._task = asyncio.create_task(self._run())
-        else:
-            logger.warning("TimeoutCheck already started")
-        return self
+    def start(self):
+        self._run.start()
 
     def cancel(self):
-        logger.debug("Cancelling task for TimeoutCheck")
-        if self._task is not None:
-            self._task.cancel()
-        self._task = None
+        self._run.cancel()
 
     def bump(self, last_timestamp: Timestamp):
         self._last_timestamp = last_timestamp
@@ -70,6 +63,7 @@ class TimeoutCheck:
             )
         )
 
+    @subtask
     async def _run(self):
         try:
             while True:
