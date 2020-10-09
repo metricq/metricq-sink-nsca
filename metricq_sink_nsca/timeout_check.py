@@ -42,14 +42,14 @@ class TimeoutCheck:
 
         self._last_timestamp: Optional[Timestamp] = None
         self._new_timestamp_event: Event = Event()
-        self._task: asyncio.Task = asyncio.create_task(self._run())
+        self._task: Optional[asyncio.Task] = None
         self._throttle = False
 
     def start(self) -> "TimeoutCheck":
-        if self._task is not None:
+        if self._task is None:
+            self._task = asyncio.create_task(self._run())
+        else:
             logger.warning("TimeoutCheck already started")
-        self._task = asyncio.create_task(self._run())
-
         return self
 
     def cancel(self):
