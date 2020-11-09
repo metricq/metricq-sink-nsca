@@ -116,7 +116,9 @@ class Check:
         if timeout is not None:
             self._timeout_checks = {
                 metric: TimeoutCheck(
-                    self._timeout, self._get_on_timeout_callback(metric)
+                    self._timeout,
+                    self._get_on_timeout_callback(metric),
+                    name=metric,
                 )
                 for metric in self._metrics
             }

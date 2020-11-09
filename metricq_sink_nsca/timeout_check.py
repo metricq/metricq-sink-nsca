@@ -36,10 +36,12 @@ class TimeoutCheck:
         timeout: Timedelta,
         on_timeout: Coroutine,
         grace_period: Optional[Timedelta] = None,
+        name: Optional[str] = None,
     ):
         self._timeout = timeout
         self._on_timeout_callback = on_timeout
         self._grace_period = Timedelta(0) if grace_period is None else grace_period
+        self._name = name
 
         self._last_timestamp: Optional[Timestamp] = None
         self._new_timestamp_event: Event = Event()
@@ -65,6 +67,7 @@ class TimeoutCheck:
 
     @subtask
     async def _run(self):
+        logger.info("{!r}: started", self)
         try:
             while True:
                 if self._last_timestamp is None or self._throttle:
@@ -84,22 +87,27 @@ class TimeoutCheck:
                     now = Timestamp.now()
                     deadline = self._last_timestamp + self._timeout + self._grace_period
                     if deadline <= now:
-                        logger.debug("Deadline in the past!")
+                        logger.debug("{!r}: deadline in the past!", self)
                         self._run_timeout_callback()
                         self._throttle = True
                     else:
                         wait_duration = deadline - now
                         await self._run_timeout_callback_after(wait_duration)
         except CancelledError:
-            logger.debug("TimeoutCheck cancelled!")
+            logger.info("{!r}: stopped", self)
         except Exception as e:  # pylint: disable=broad-except
-            logger.exception(f"Unexpected error inside TimeoutCheck callback: {e}")
+            logger.exception(
+                "{!r}: unexpected error inside TimeoutCheck callback: {}", self, e
+            )
 
     async def _run_timeout_callback_after(self, timeout: Timedelta):
         try:
-            logger.debug(f"TimeoutCheck: waiting for {timeout}...")
+            logger.debug("{!r}: waiting for {}...", self, timeout)
             await asyncio.wait_for(self._new_timestamp_event.wait(), timeout=timeout.s)
             self._new_timestamp_event.clear()
         except asyncio.TimeoutError:
-            logger.debug("TimeoutCheck fired!")
+            logger.debug("{!r} fired!", self)
             self._run_timeout_callback()
+
+    def __repr__(self):
+        return f"<TimeoutCheck: name={self._name!r} at {id(self):#x}>"

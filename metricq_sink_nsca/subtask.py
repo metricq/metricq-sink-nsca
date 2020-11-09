@@ -24,22 +24,23 @@ class Subtask(Generic[Class]):
 
     def start(self):
         if self._task is None:
-            logger.debug("Starting subtask {}", self._name)
+            logger.debug("Starting subtask {!r}", self)
             task = self._task_factory()
             try:
                 self._task = create_task(task, name=self._name)
             except TypeError:
                 self._task = create_task(task)
         else:
-            logger.warning(
-                'Subtask "{}" (id: {:x}) already started!', self._name, id(self)
-            )
+            logger.warning("Subtask {!r} already started!", self)
 
     def cancel(self):
         if self._task is not None:
-            logger.debug("Cancelling subtask {}", self._name)
+            logger.debug("Cancelling subtask {!r}", self)
             self._task.cancel()
             self._task = None
+
+    def __repr__(self):
+        return f"<Subtask: name={self._name!r} at {id(self):#x}>"
 
 
 class SubtaskProxy(Generic[Class]):
