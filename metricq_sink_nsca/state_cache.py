@@ -268,6 +268,7 @@ class TransitionPostprocessor(ABC):
     @abstractmethod
     def process(
         self,
+        metric: str,
         current_state: State,
         timestamp: Timestamp,
         history: StateTransitionHistory,
@@ -281,6 +282,7 @@ class TransitionDebounce(TransitionPostprocessor):
 
     def process(
         self,
+        metric: str,
         current_state: State,
         timestamp: Timestamp,
         history: StateTransitionHistory,
@@ -311,6 +313,7 @@ class IgnoreShortTransitions(TransitionPostprocessor):
 
     def process(
         self,
+        metric: str,
         current_state: State,
         _timestamp: Timestamp,
         history: StateTransitionHistory,
@@ -346,6 +349,7 @@ class SoftFail(TransitionPostprocessor):
 
     def process(
         self,
+        metric: str,
         current_state: State,
         _timestamp: Timestamp,
         history: StateTransitionHistory,
@@ -363,7 +367,7 @@ class SoftFail(TransitionPostprocessor):
             if history_len <= self._max_fail_count:
                 logger.warning(
                     f"SoftFail is inconclusive: "
-                    f"history contains only {history_len} transitions, "
+                    f"history of {metric} contains only {history_len} transitions, "
                     f"need at least {self._max_fail_count + 1}!"
                 )
 
@@ -411,10 +415,10 @@ class StateCache:
 
         metric_history.insert(time=timestamp, state=state)
         postprocessed_state = self._transition_postprocessor.process(
-            state, timestamp, metric_history
+            metric, state, timestamp, metric_history
         )
         if postprocessed_state != state:
-            logger.debug(
+            logger.info(
                 f"{type(self._transition_postprocessor).__name__}: "
                 f"adjusted transition for {metric!r}: "
                 f"{state} -> {postprocessed_state}"

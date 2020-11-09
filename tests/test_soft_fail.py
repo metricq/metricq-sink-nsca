@@ -64,6 +64,6 @@ def test_soft_fail(empty_transition_history, ticker, max_fail_count, transitions
     expected: State
     for (ts, (state, expected)) in zip(ticker, transitions):
         history.insert(ts, state)
-        processed_state = soft_fail.process(state, ts, history)
+        processed_state = soft_fail.process("metric", state, ts, history)
         logger.info(f"ts={ts}, state={state}, processed_state={processed_state}")
         assert processed_state == expected
