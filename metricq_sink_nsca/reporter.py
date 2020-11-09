@@ -151,10 +151,10 @@ class ReporterSink(metricq.DurableSink):
         logger.info(
             f'Setting up check "{name}" with '
             f"value_contraints={value_constraints!r}, "
-            f"timeout={timeout!r}, "
-            f"plugins={list(plugins.keys())},"
-            f"resend_interval={resend_interval} and "
-            f"transition_debounce_window={transition_debounce_window} and"
+            f"timeout={timeout}, "
+            f"plugins={list(plugins.keys())}, "
+            f"resend_interval={resend_interval}, "
+            f"transition_debounce_window={transition_debounce_window} and "
             f"transition_postprocessing={transition_postprocessing}"
         )
         return Check(
@@ -172,19 +172,21 @@ class ReporterSink(metricq.DurableSink):
     def _add_check(self, name: str, config: dict):
         if not self._checks:
             self._checks = dict()
-        logger.debug('Adding check "{}"', name)
+        logger.info('Adding check "{}"', name)
         check = self._parse_check_from_config(name, config)
         check.start()
         self._checks[name] = check
         self._check_configs[name] = config
 
     def _remove_check(self, name: str):
+        logger.info('Removing check "{}"', name)
         if self._checks:
             self._check_configs.pop(name)
             check: Check = self._checks.pop(name, None)
             if check is not None:
-                logger.debug('Removing check "{}"', name)
                 check.cancel()
+            else:
+                logger.warn('Check "{}" did not exist', name)
 
     def _init_checks(self, check_config) -> None:
         self._checks = dict()
@@ -200,22 +202,20 @@ class ReporterSink(metricq.DurableSink):
         to_update = new & old
 
         for name in to_remove:
-            logger.debug("Removing check {}", name)
             self._remove_check(name)
 
         for name in to_add:
-            logger.debug("Adding new check {}", name)
             self._add_check(name, updated_check_config[name])
 
         for name in to_update:
             old_config = self._check_configs[name]
             updated_config = updated_check_config[name]
             if updated_config != old_config:
-                logger.debug("Updating check {}", name)
+                logger.info("Updating check {}", name)
                 self._remove_check(name)
                 self._add_check(name, updated_config)
             else:
-                logger.debug("Skipping update of unchanged check {}", name)
+                logger.info("Skipping update of unchanged check {}", name)
 
     async def connect(self):
         await super().connect()
