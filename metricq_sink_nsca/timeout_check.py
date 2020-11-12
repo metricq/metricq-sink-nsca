@@ -20,7 +20,7 @@
 
 import asyncio
 from asyncio import CancelledError, Event
-from typing import Coroutine, Optional
+from typing import Optional, Protocol
 
 from metricq.types import Timedelta, Timestamp
 
@@ -30,16 +30,23 @@ from .subtask import subtask
 logger = get_logger(__name__)
 
 
+class TimeoutCallback(Protocol):
+    def __call__(
+        self, *, timeout: Timedelta, last_timestamp: Optional[Timestamp]
+    ) -> None:
+        ...
+
+
 class TimeoutCheck:
     def __init__(
         self,
         timeout: Timedelta,
-        on_timeout: Coroutine,
+        on_timeout: TimeoutCallback,
         grace_period: Optional[Timedelta] = None,
         name: Optional[str] = None,
     ):
         self._timeout = timeout
-        self._on_timeout_callback = on_timeout
+        self._timeout_callback: TimeoutCallback = on_timeout
         self._grace_period = Timedelta(0) if grace_period is None else grace_period
         self._name = name
 
@@ -59,10 +66,8 @@ class TimeoutCheck:
         self._new_timestamp_event.set()
 
     def _run_timeout_callback(self):
-        asyncio.create_task(
-            self._on_timeout_callback(
-                timeout=self._timeout, last_timestamp=self._last_timestamp
-            )
+        self._timeout_callback(
+            timeout=self._timeout, last_timestamp=self._last_timestamp
         )
 
     @subtask

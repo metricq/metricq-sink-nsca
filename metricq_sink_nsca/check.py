@@ -19,7 +19,7 @@
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
 from asyncio import sleep
-from typing import Coroutine, Dict, Iterable, NamedTuple, Optional, Set
+from typing import Dict, Iterable, NamedTuple, Optional, Set
 
 from metricq.types import Timedelta, Timestamp
 
@@ -36,7 +36,7 @@ from .state_cache import (
     TransitionPostprocessor,
 )
 from .subtask import subtask
-from .timeout_check import TimeoutCheck
+from .timeout_check import TimeoutCallback, TimeoutCheck
 from .value_check import ValueCheck
 
 logger = get_logger(__name__)
@@ -181,8 +181,8 @@ class Check:
             report = Report(service=self._name, state=new_state, message=message)
             self._report_queue.put(report)
 
-    def _get_on_timeout_callback(self, metric) -> Coroutine:
-        async def on_timeout(timeout: Timedelta, last_timestamp: Optional[Timestamp]):
+    def _get_on_timeout_callback(self, metric) -> TimeoutCallback:
+        def on_timeout(timeout: Timedelta, last_timestamp: Optional[Timestamp]):
             logger.warning(f"Check {self._name!r}: {metric} timed out after {timeout}")
             self._state_cache.set_timed_out(metric, last_timestamp)
             self._trigger_report()
@@ -269,7 +269,7 @@ class Check:
         if metric in self._metrics:
             self.check_metric(metric=metric, tv_pairs=tv_pairs)
 
-    async def bump_timeout_check(self, metric: str, timestamp: Timestamp) -> None:
+    def bump_timeout_check(self, metric: str, timestamp: Timestamp) -> None:
         if self._has_timeout_checks():
             try:
                 self._timeout_checks[metric].bump(timestamp)

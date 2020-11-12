@@ -283,7 +283,7 @@ class ReporterSink(metricq.DurableSink):
         if not self._has_value_checks:
             if len(data_chunk.time_delta) > 0:
                 last_timestamp = Timestamp(sum(data_chunk.time_delta))
-                await self._bump_timeout_checks(metric, last_timestamp)
+                self._bump_timeout_checks(metric, last_timestamp)
             return
 
         tv_pairs = [
@@ -305,7 +305,7 @@ class ReporterSink(metricq.DurableSink):
         # received values, i.e. reset the asynchronous timers that would
         # fire if we do not receive value for too long.
         last_timestamp = tv_pairs[-1].timestamp
-        await self._bump_timeout_checks(metric, last_timestamp)
+        self._bump_timeout_checks(metric, last_timestamp)
 
     async def on_data(self, _metric, _timestamp, _value):
         """Functionality implemented in _on_data_chunk"""
@@ -377,17 +377,11 @@ class ReporterSink(metricq.DurableSink):
         else:
             log_output(logger.debug, stdout_data)
 
-    async def _bump_timeout_checks(
-        self, metric: str, last_timestamp: Timestamp
-    ) -> None:
+    def _bump_timeout_checks(self, metric: str, last_timestamp: Timestamp) -> None:
         check: Check
-        await asyncio.gather(
-            *tuple(
+        for check in self._checks.values():
+            if metric in check:
                 check.bump_timeout_check(metric, last_timestamp)
-                for check in self._checks.values()
-                if metric in check
-            )
-        )
 
     @subtask
     async def _send_reports_loop(self):
