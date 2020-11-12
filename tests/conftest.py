@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 from metricq.types import Timedelta, Timestamp
 
@@ -23,3 +25,11 @@ class Ticker:
 @pytest.fixture()
 def ticker():
     return Ticker()
+
+
+async def step():
+    await asyncio.sleep(0.0)
+
+
+async def sleep(timeout: Timedelta):
+    await asyncio.sleep(timeout.s)

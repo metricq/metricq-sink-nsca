@@ -1,4 +1,3 @@
-from asyncio import sleep
 from contextlib import asynccontextmanager
 from logging import WARNING
 
@@ -6,9 +5,7 @@ import pytest
 
 from metricq_sink_nsca.subtask import Subtask, SubtaskProxy, subtask
 
-
-async def step():
-    await sleep(0.0)
+from .conftest import step
 
 
 @pytest.fixture
