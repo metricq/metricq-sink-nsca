@@ -413,7 +413,11 @@ class StateCache:
                 f"{type(self).__name__} not set up to track state of metric {metric}"
             )
 
-        metric_history.insert(time=timestamp, state=state)
+        try:
+            metric_history.insert(time=timestamp, state=state)
+        except ValueError:
+            raise ValueError(f"Failed to update state history of {metric!r}")
+
         postprocessed_state = self._transition_postprocessor.process(
             metric, state, timestamp, metric_history
         )

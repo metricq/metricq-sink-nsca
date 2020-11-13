@@ -181,6 +181,19 @@ class Check:
             report = Report(service=self._name, state=new_state, message=message)
             self._report_queue.put(report)
 
+    def _trigger_exception_report(self, e: Exception):
+        message = [f"Unhandled exception: {e}"]
+
+        cause = e.__cause__
+
+        while cause is not None:
+            message.append(f"caused by: {cause}")
+            cause = cause.__cause__
+
+        self._report_queue.put(
+            Report(service=self._name, state=State.CRITICAL, message="\n".join(message))
+        )
+
     def _get_on_timeout_callback(self, metric) -> TimeoutCallback:
         def on_timeout(timeout: Timedelta, last_timestamp: Optional[Timestamp]):
             logger.warning(f"Check {self._name!r}: {metric} timed out after {timeout}")
@@ -263,11 +276,17 @@ class Check:
 
     # TODO: rename
     def check(self, metric: str, tv_pairs: Iterable[TvPair]) -> None:
-        if metric in self._extra_metrics:
-            self.update_extra_metric(extra_metric=metric, tv_pairs=tv_pairs)
+        try:
+            if metric in self._extra_metrics:
+                self.update_extra_metric(extra_metric=metric, tv_pairs=tv_pairs)
 
-        if metric in self._metrics:
-            self.check_metric(metric=metric, tv_pairs=tv_pairs)
+            if metric in self._metrics:
+                self.check_metric(metric=metric, tv_pairs=tv_pairs)
+        except Exception as e:
+            logger.exception(
+                "Unhandled exception when checking values for {!r}", metric
+            )
+            self._trigger_exception_report(e)
 
     def bump_timeout_check(self, metric: str, timestamp: Timestamp) -> None:
         if self._has_timeout_checks():
