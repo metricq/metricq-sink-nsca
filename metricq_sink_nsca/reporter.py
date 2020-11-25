@@ -27,7 +27,6 @@ from socket import gethostname
 from typing import Dict, Iterable, Optional
 
 import metricq
-import pkg_resources
 from metricq import Timedelta, Timestamp
 
 from .check import Check, TvPair
@@ -35,8 +34,7 @@ from .logging import get_logger
 from .report_queue import Report, ReportQueue
 from .state import State
 from .subtask import subtask
-
-__version__ = pkg_resources.get_distribution("metricq-sink-nsca").version
+from .version import version as client_version
 
 logger = get_logger(__name__)
 
@@ -75,7 +73,7 @@ class ReporterSink(metricq.DurableSink):
         self._global_resend_interval: Optional[Timedelta] = None
         self._report_queue = ReportQueue()
 
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, client_version=client_version, **kwargs)
 
     def _clear_checks(self):
         if not self._checks:
