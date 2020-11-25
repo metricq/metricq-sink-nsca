@@ -78,8 +78,9 @@ optional:
    values arrive apart more than the specified duration.  The duration is
    of the form of  ``<value><unit>``, e.g. ``30s`` or ``5min``.
 
+.. _below:
+
 ``resend_interval`` (duration string)
-    .. _below:
     Minimum time interval at which this check should trigger reports, even if
     its overall state did not change.  This is useful for keeping the
     Centreon/Nagios host up-to-date and signaling that this passive check is
