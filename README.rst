@@ -4,6 +4,24 @@
 This tool is a MetricQ sink that sends passive service check results for
 metrics, based on their availability and value range.
 
+Installation
+------------
+
+Install the latest release of `metric-sink-nsca` from
+`PyPI <pypi.org/project/metricq-sink-nsca>`_:
+
+.. code-block:: shell
+
+    $ pip install metric-sink-nsca
+
+To install the latest development version, clone
+`the repo <https://github.com/metricq/metricq-sink-nsca>`_ and install from source:
+
+.. code-block:: shell
+
+    $ git clone https://github.com/metricq/metricq-sink-nsca.git /path/to/repo
+    $ pip install /path/to/repo
+
 Usage
 -----
 
