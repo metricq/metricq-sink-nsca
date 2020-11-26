@@ -1,0 +1,38 @@
+{
+    "$schema": "https://raw.githubusercontent.com/metricq/metricq-sink-nsca/master/config.schema.json",
+    "nsca": {
+        "host": "nsca.example.com",
+        "port": 5667,
+        "executable": "/opt/nsca/bin/send_nsca",
+        "config_file": "/opt/nsca/etc/send_nsca.cfg"
+    },
+    "reporting_host": "foo",
+    "resend_interval": "2min",
+    "checks": {
+        "foo": {
+            "metrics": [
+                "foo.bar",
+                "foo.baz"
+            ],
+            "critical_below": 5.0,
+            "warning_below": 10.0,
+            "warning_above": 95.0,
+            "critical_above": 100.0,
+            "timeout": "10min",
+            "ignore": [
+                0.0
+            ],
+            "resend_interval": "5min",
+            "transition_debounce_window": "1min",
+            "plugins": {
+                "foo_plugin": {
+                    "file": "/opt/metricq_sink_nsca/plugins/foo_plugin.py",
+                    "config": {
+                        "zorgs": 3,
+                        "blargles": ["ahhh", "ouggh"]
+                    }
+                }
+            }
+        }
+    }
+}
