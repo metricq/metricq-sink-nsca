@@ -29,8 +29,9 @@ jobs:
 
       - name: Generate HTML from Sphinx docs
         run: |
-          # run HTML builder (-b) in nitpicky mode (-n) in a fresh environment (-E)
-          sphinx-build -b html -n -E docs ${{ env.OUTPUT_PATH }}
+          # run HTML builder (-b) in nitpicky mode (-n) in a fresh environment (-E),
+          # saving cached doctrees to a separate directory (-d)
+          sphinx-build -b html -n -E -d .doctrees docs ${{ env.OUTPUT_PATH }}
 
       - name: Upload generated HTML as build artifact
         uses: actions/upload-artifact@v2
