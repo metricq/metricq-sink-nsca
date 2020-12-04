@@ -1,8 +1,10 @@
 Changelog
 =========
 
+* :release:`1.6.0 <2020-12-04>`
 * :support:`10`: :code:`metricq-sink-nsca` is now `available on PyPI <https://pypi.org/project/metricq-sink-nsca>`_!
-* :bug:`9` Gracefully handle non-monotonic metrics
+* :bug:`9 major` Gracefully handle non-monotonic metrics
+* :feature:`6` Add Sphinx-based documentation, read it `here <https://metricq.github.io/metricq-sink-nsca/>`_!
 * :feature:`3` Implement soft-fail post-processing for state changes
 * :feature:`1` Make parsing of DataChunks optional
 * :feature:`-` Add a dry-run mode (:code:`-n/--dry-run`) that does not call :code:`send_nsca`
