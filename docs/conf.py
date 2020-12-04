@@ -38,6 +38,7 @@ extensions = [
     "sphinx_rtd_theme",
     "sphinx_autodoc_typehints",
     "sphinxcontrib.spelling",
+    "releases",
 ]
 
 intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
@@ -75,3 +76,6 @@ html_extra_path = [".nojekyll"]
 # (see https://sphinxcontrib-spelling.readthedocs.io/en/latest/customize.html)
 
 spelling_word_list_filename = "spelling_wordlist.txt"
+
+# Changelog generation
+releases_github_path = "metricq/metricq-sink-nsca"

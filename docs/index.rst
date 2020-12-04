@@ -7,6 +7,8 @@ Welcome to the MetricQ NSCA Reporter documentation!
 
     usage/configuration.rst
 
+    changelog.rst
+
 
 
 Indices and tables
