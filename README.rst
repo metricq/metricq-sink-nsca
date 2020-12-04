@@ -1,14 +1,22 @@
 ``metricq-sink-nsca``
 =====================
 
+|PyPI version|
+|Documentation|
+
+.. |PyPI version| image:: https://img.shields.io/pypi/v/metricq-sink-nsca.svg
+   :target: PyPI_
+
+.. |Documentation| image:: https://img.shields.io/badge/Documentation-here-green.svg
+   :target: Documentation_
+
 This tool is a MetricQ sink that sends passive service check results for
 metrics, based on their availability and value range.
 
 Installation
 ------------
 
-Install the latest release of `metric-sink-nsca` from
-`PyPI <pypi.org/project/metricq-sink-nsca>`_:
+Install the latest release of `metric-sink-nsca` from PyPI_:
 
 .. code-block:: shell
 
@@ -158,3 +166,6 @@ License
 
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+.. _PyPI: https://pypi.python.org/pypi/metricq-sink-nsca/
+.. _Documentation: https://metricq.github.io/metricq-sink-nsca
