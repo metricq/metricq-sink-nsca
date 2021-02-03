@@ -19,7 +19,7 @@
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
 import math
-from typing import Iterable, Optional
+from typing import Iterable, List, Optional, TypedDict
 
 from .state import State
 
@@ -52,6 +52,14 @@ class AbnormalRange:
         return (value < self.low) or (self.high < value)
 
 
+class ValueCheckConfig(TypedDict, total=False):
+    warning_above: float
+    warning_below: float
+    critical_above: float
+    critical_below: float
+    ignore: List[float]
+
+
 class ValueCheck:
     def __init__(
         self,
@@ -71,6 +79,16 @@ class ValueCheck:
         self._warning_range = AbnormalRange(low=warning_below, high=warning_above)
         self._critical_range = AbnormalRange(low=critical_below, high=critical_above)
         self._ignore = set() if ignore is None else set(ignore)
+
+    @staticmethod
+    def from_config(config: ValueCheckConfig) -> "ValueCheck":
+        return ValueCheck(
+            warning_below=config.get("warning_below", -math.inf),
+            warning_above=config.get("warning_above", math.inf),
+            critical_below=config.get("critical_below", -math.inf),
+            critical_above=config.get("critical_above", math.inf),
+            ignore=config.get("ignore"),
+        )
 
     @property
     def warning_range(self):

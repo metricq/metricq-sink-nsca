@@ -19,25 +19,21 @@
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
 from asyncio import CancelledError, gather, sleep
-from typing import Dict, Iterable, NamedTuple, Optional, Set
+from typing import Dict, Iterable, List, NamedTuple, Optional, Set, TypedDict
 
 from metricq.types import Timedelta, Timestamp
 
+from .config_parser import DurationStr, Metric, parse_timedelta
 from .logging import get_logger
+from .override import Overrides
 from .plugin import Plugin
 from .plugin import load as load_plugin
 from .report_queue import Report, ReportQueue
 from .state import State
-from .state_cache import (
-    IgnoreShortTransitions,
-    SoftFail,
-    StateCache,
-    TransitionDebounce,
-    TransitionPostprocessor,
-)
+from .state_cache import StateCache, TransitionPostprocessor
 from .subtask import subtask
 from .timeout_check import TimeoutCallback, TimeoutCheck
-from .value_check import ValueCheck
+from .value_check import ValueCheck, ValueCheckConfig
 
 logger = get_logger(__name__)
 
@@ -47,18 +43,35 @@ class TvPair(NamedTuple):
     value: float
 
 
+class CheckConfig(ValueCheckConfig, total=False):
+    metrics: List[Metric]
+    timeout: DurationStr
+    resend_interval: DurationStr
+    transition_debounce_window: DurationStr
+    transition_postprocessing: dict
+    plugins: dict
+
+
+class PluginConfig(TypedDict):
+    file: str
+    metrics: List[Metric]
+    config: dict
+
+
 class Check:
     def __init__(
         self,
         name: str,
-        metrics: Iterable[str],
+        *,
+        metrics: Set[Metric],
         report_queue: ReportQueue,
-        value_constraints: Optional[Dict[str, float]],
+        value_check: Optional[ValueCheck],
         resend_interval: Timedelta,
-        timeout: Optional[Timedelta] = None,
-        plugins: Optional[Dict[str, Dict]] = None,
-        transition_debounce_window: Optional[Timedelta] = None,
-        transition_postprocessing: Optional[Dict] = None,
+        timeout: Optional[Timedelta],
+        plugins: Dict[str, Plugin],
+        transition_debounce_window: Optional[Timedelta],
+        transition_postprocessor: Optional[TransitionPostprocessor],
+        config: CheckConfig,
     ):
         """Create value- and timeout-checks for a set of metrics
 
@@ -69,36 +82,21 @@ class Check:
             trigger reports, even if its overall state did not change.  This is
             useful for keeping the Centreon/Nagios host up-to-date and signaling
             that this passive check is not dead.
-        :param value_constraints: Dictionary indicating warning and critical
-            value ranges, see ValueCheck.  If omitted, this check does not care
-            for which values its metrics report.
+        :param value_check: See ValueCheck.  If omitted, this check does not
+            care for which values its metrics report.
         :param timeout: If set, and a metric does not deliver values within
             this duration, a report of 'CRITICAL' severity is put into the queue.
-        :param plugins: A dictionary containing plugin configurations by name
+        :param plugins:
+            A dictionary of plugins by name.
         :param transition_debounce_window: Time window in which state
             transitions are debounced.
+        :param config: The configuration this was parsed from.
+            Needed to determine if a check needs to be updated with a new configuration.
         """
+        self.config = config
         self._name = name
-        self._metrics: Set[str] = set(metrics)
+        self._metrics = metrics
         self._report_queue = report_queue
-
-        transition_postprocessor: Optional[TransitionPostprocessor] = None
-
-        if transition_postprocessing is not None:
-            POSTPROCESSORS = {
-                "debounce": TransitionDebounce,
-                "ignore_short_transitions": IgnoreShortTransitions,
-                "soft_fail": SoftFail,
-            }
-            try:
-                selected = transition_postprocessing.get("type", "debounce")
-                transition_postprocessor = POSTPROCESSORS[selected](
-                    **transition_postprocessing
-                )
-            except KeyError:
-                raise ValueError(
-                    f"Unknown transition postprocessor {selected!r} specified"
-                )
 
         self._state_cache = StateCache(
             metrics=self._metrics,
@@ -107,9 +105,7 @@ class Check:
         )
         self._last_overall_state = State.UNKNOWN
 
-        self._value_check: Optional[ValueCheck] = (
-            ValueCheck(**value_constraints) if value_constraints is not None else None
-        )
+        self._value_check = value_check
         self._timeout_checks: Optional[Dict[str, TimeoutCheck]] = None
 
         self._timeout: Optional[Timedelta] = timeout
@@ -125,31 +121,96 @@ class Check:
 
         self._resend_interval: Timedelta = resend_interval
 
-        self._plugins: Dict[str, Plugin] = dict()
-        self._plugins_extra_metrics: Dict[str, Set[str]] = dict()
-        if plugins is not None:
-            for name, config in plugins.items():
-                logger.debug(f"Loading plugin {name!r}...")
+        self._plugins = plugins
+        self._extra_metrics: Set[str] = set().union(
+            *(plugin.__extra_metrics for plugin in plugins.values())
+        )
+
+    @staticmethod
+    def from_config(
+        name: str,
+        config: CheckConfig,
+        report_queue: ReportQueue,
+        resend_interval: Timedelta,
+        overrides: Overrides,
+    ) -> "Check":
+        all_metrics = config.get("metrics")
+        if not all_metrics:
+            raise ValueError(f"Check {name!r} must contain at least one metric")
+
+        if not (
+            isinstance(all_metrics, list)
+            and len(all_metrics) > 0
+            and all(isinstance(m, str) for m in all_metrics)
+        ):
+            raise ValueError(
+                f'Check {name!r}: "metrics" must be a nonempty list of metric names'
+            )
+
+        # Filter out all metrics that match an override and should be ignored.
+        metrics = overrides.filter_ignored_metrics(all_metrics)
+
+        ignored = set(all_metrics) - metrics
+        if ignored:
+            logger.info(
+                "Check {!r}: override in effect, {}/{} metric(s) matched a rule and will be ignored",
+                name,
+                len(ignored),
+                len(all_metrics),
+            )
+
+        del all_metrics  # not needed anymore
+
+        value_check = ValueCheck.from_config(config)
+        timeout = parse_timedelta(config.get("timeout"))
+        resend_interval = parse_timedelta(
+            config.get("resend_interval"), default=resend_interval
+        )
+        transition_debounce_window = parse_timedelta(
+            config.get("transition_debounce_window")
+        )
+
+        transition_postprocessor = TransitionPostprocessor.from_config(
+            config.get("transition_postprocessing")
+        )
+
+        plugin_configs: Dict[str, PluginConfig] = config.get("plugins", {})
+        plugins: Dict[str, Plugin] = dict()
+        if plugin_configs:
+            logger.info("Check {!r}: loading {} plugin(s)", name, len(plugin_configs))
+            for plugin_name, plugin_config in plugin_configs.items():
+                file = plugin_config["file"]
                 try:
-                    file = config["file"]
                     plugin = load_plugin(
-                        name=name,
-                        file=file,
-                        metrics=self._metrics,
-                        config=config.get("config", {}),
-                    )
-                    self._plugins[name] = plugin
-                    self._plugins_extra_metrics[name] = plugin.extra_metrics()
-                    logger.info(
-                        f"Loaded plugin {name!r} for check {self._name} from {file}"
+                        name,
+                        file,
+                        set(plugin_config["metrics"]),
+                        plugin_config["config"],
                     )
                 except Exception:
                     logger.exception(
-                        f"Failed to load plugin {name!r} for check {self._name}"
+                        "Check {!r}: failed to load plugin {!r} from {!r}",
+                        name,
+                        plugin_name,
+                        file,
                     )
                     raise
-        self._extra_metrics: Set[str] = set().union(
-            *self._plugins_extra_metrics.values()
+                logger.info(
+                    "Check {!r}: loaded plugin {!r} from {}", name, plugin_name, file
+                )
+                plugins[plugin_name] = plugin
+
+        return Check(
+            name,
+            metrics=metrics,
+            report_queue=report_queue,
+            resend_interval=resend_interval,
+            value_check=value_check,
+            timeout=timeout,
+            transition_debounce_window=transition_debounce_window,
+            transition_postprocessor=transition_postprocessor,
+            plugins=plugins,
+            config=config,
         )
 
     def _has_value_checks(self) -> bool:
@@ -269,7 +330,7 @@ class Check:
     def update_extra_metric(self, extra_metric: str, tv_pairs: Iterable[TvPair]):
         for timestamp, value in tv_pairs:
             for plugin_name in self._plugins:
-                if extra_metric in self._plugins_extra_metrics[plugin_name]:
+                if extra_metric in self._plugins[plugin_name].__extra_metrics:
                     self._plugins[plugin_name].on_extra_metric(
                         extra_metric, timestamp, value
                     )

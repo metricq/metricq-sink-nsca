@@ -275,6 +275,28 @@ class TransitionPostprocessor(ABC):
     ) -> State:
         return current_state
 
+    @staticmethod
+    def from_config(config: Optional[dict]) -> Optional["TransitionPostprocessor"]:
+        if config is None:
+            return None
+        elif isinstance(config, dict):
+            selected = config.get("type", "debounce")
+            POSTPROCESSORS = {
+                "debounce": TransitionDebounce,
+                "ignore_short_transitions": IgnoreShortTransitions,
+                "soft_fail": SoftFail,
+            }
+            try:
+                return POSTPROCESSORS[selected](**config)
+            except KeyError:
+                raise ValueError(
+                    f"Unknown transition postprocessor {selected!r} specified"
+                )
+        else:
+            raise TypeError(
+                f'"transition_postprocessing" must be a dictionary not {type(config).__qualname__}'
+            )
+
 
 class TransitionDebounce(TransitionPostprocessor):
     def __init__(self, **_kwargs):

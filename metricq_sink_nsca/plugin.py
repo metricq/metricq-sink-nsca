@@ -1,7 +1,6 @@
 import importlib
 from abc import ABC, abstractmethod
-from types import ModuleType
-from typing import Callable, Iterable, Set
+from typing import Callable, Iterable, Protocol, Set
 
 from metricq import Timestamp
 
@@ -10,6 +9,9 @@ from .state import State
 
 class Plugin(ABC):
     """Base class exposing the interface to a plugin instance loaded from a file."""
+
+    def __init__(self):
+        self.__extra_metrics: Set[str] = set()
 
     @abstractmethod
     def check(
@@ -71,6 +73,11 @@ class Plugin(ABC):
 EntryPointType = Callable[[str, dict, Set[str]], Plugin]
 
 
+class PluginModule(Protocol):
+    def get_plugin(self, name: str, config: dict, metrics: Set[str]) -> Plugin:
+        ...
+
+
 def load(name: str, file: str, metrics: Set[str], config: dict) -> Plugin:
     """Load a plugin file for a check.
 
@@ -88,8 +95,12 @@ def load(name: str, file: str, metrics: Set[str], config: dict) -> Plugin:
         Optional arbitrary configuration data for the plugin instance, as found
         under `plugins.<name>.config` in the configuration for a check.
     """
-    module_spec = importlib.util.spec_from_file_location(f"{__name__}.{name}", file)
-    module: ModuleType = importlib.util.module_from_spec(module_spec)
+    module_spec = importlib.util.spec_from_file_location(f"{__name__}.{name}", file)  # type: ignore
+    module: PluginModule = importlib.util.module_from_spec(module_spec)  # type: ignore
     module_spec.loader.exec_module(module)
-    entry_point: EntryPointType = module.get_plugin
-    return entry_point(name, config, metrics)
+    entry_point = module.get_plugin
+    plugin = entry_point(name, config, metrics)
+
+    plugin.__extra_metrics = set(plugin.extra_metrics())
+
+    return plugin

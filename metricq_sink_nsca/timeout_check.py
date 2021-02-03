@@ -83,7 +83,7 @@ class TimeoutCheck:
                     # and ran the timeout callback.  Wait for the entire
                     # timeout duration in either case, so that we don't spam
                     # the timeout callback.
-                    timeout = self._timeout + self._grace_period
+                    timeout: Timedelta = self._timeout + self._grace_period
                     await self._run_timeout_callback_after(timeout)
                 else:
                     # Calculate a deadline by which we expect the next bump,
