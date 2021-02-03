@@ -84,6 +84,20 @@ Top-level configuration
     Default
         :literal:`"3min"`
 
+:code:`ignore_update_errors` (*boolean*)
+    .. _ignore_update_errors:
+
+    Ignore errors that happen when updating the state of a metric with new values.
+
+    If set to :literal:`true`, any invalid *time-value* pair will be dropped.
+    The metric *won't change state* because of this value, even if it is :ref:`abnormal<abnormal-ranges>`.
+    It *won't be marked as alive* because the timestamp,
+    i.e. its associated check signal a timeout-condition if no valid data point arrives :ref:`soon after<timeout>`.
+    A measurement is invalid e.g. if its timestamp indicates a measurement in the past, relative to any measurement received so far.
+
+    Default
+        :literal:`false`: All invalid metric values trigger a :literal:`CRITICAL` report for the associated check.
+
 Check configuration
 ^^^^^^^^^^^^^^^^^^^
 

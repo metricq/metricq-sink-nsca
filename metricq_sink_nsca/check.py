@@ -59,6 +59,7 @@ class Check:
         plugins: Optional[Dict[str, Dict]] = None,
         transition_debounce_window: Optional[Timedelta] = None,
         transition_postprocessing: Optional[Dict] = None,
+        ignore_update_errors: bool = False,
     ):
         """Create value- and timeout-checks for a set of metrics
 
@@ -104,6 +105,7 @@ class Check:
             metrics=self._metrics,
             transition_debounce_window=transition_debounce_window,
             transition_postprocessor=transition_postprocessor,
+            ignore_update_errors=ignore_update_errors,
         )
         self._last_overall_state = State.UNKNOWN
 

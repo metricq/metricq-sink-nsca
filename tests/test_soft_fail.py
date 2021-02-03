@@ -53,11 +53,17 @@ def empty_transition_history():
         ),
     ],
 )
-def test_soft_fail(empty_transition_history, ticker, max_fail_count, transitions):
+def test_soft_fail(
+    empty_transition_history: StateTransitionHistory,
+    ticker,
+    max_fail_count,
+    transitions,
+):
     soft_fail = SoftFail(max_fail_count)
 
     history = empty_transition_history
     history.insert(next(ticker), State.OK)
+    assert history._epoch is not None
 
     ts: Timestamp
     state: State

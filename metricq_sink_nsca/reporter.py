@@ -71,6 +71,7 @@ class ReporterSink(metricq.DurableSink):
         self._check_configs: Dict[str] = dict()
         self._has_value_checks: bool = False
         self._global_resend_interval: Optional[Timedelta] = None
+        self._ignore_update_errors: bool = False
         self._report_queue = ReportQueue()
 
         super().__init__(*args, client_version=client_version, **kwargs)
@@ -165,6 +166,7 @@ class ReporterSink(metricq.DurableSink):
             plugins=plugins,
             transition_debounce_window=transition_debounce_window,
             transition_postprocessing=transition_postprocessing,
+            ignore_update_errors=self._ignore_update_errors,
         )
 
     def _add_check(self, name: str, config: dict):
@@ -240,6 +242,7 @@ class ReporterSink(metricq.DurableSink):
         nsca: dict,
         reporting_host: str = DEFAULT_HOSTNAME,
         resend_interval: str = "3min",
+        ignore_update_errors: bool = False,
         **_kwargs,
     ) -> None:
         self._reporting_host = reporting_host
@@ -259,6 +262,8 @@ class ReporterSink(metricq.DurableSink):
                 f'Invalid resend interval "{resend_interval}" in configuration: {e}'
             )
             raise
+
+        self._ignore_update_errors = bool(ignore_update_errors)
 
         if not self._checks:
             self._init_checks(checks)

@@ -1,6 +1,10 @@
 Changelog
 =========
 
+* :bug:`16` Optionally ignore invalid (especially non-monotonic) data points:
+
+  Use the new configuration key :literal:`ignore_update_errors` (:ref:`here<ignore_update_errors>`) to optionally suppress
+  :literal:`CRITICAL` reports if a check could not be updated because of invalid metric data
 * :feature:`27` (via :issue:`26`) Optionally use :code:`uvloop`-based event loop.
   To enable, install :code:`uvloop` directly, or the :code:`[uvloop]` extra
   (:code:`pip install 'metricq-sink-nsca[uvloop]'`).

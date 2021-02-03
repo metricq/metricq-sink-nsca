@@ -126,15 +126,32 @@ class StateTransitionHistory:
             self._epoch = time
             return
         else:
+            if time <= self._epoch:
+                raise ValueError(
+                    f"Trying to insert transition at '{time}' at/before epoch '{self._epoch}'"
+                )
+
             transition = StateTransition(time, state)
             if self._transitions:
                 latest_transition = self._transitions[-1]
                 if time <= latest_transition.time:
-                    logger.warning(
-                        f"Times of state transitions must be strictly increasing: "
-                        f"new transition at {time} is before "
-                        f"latest transition at {latest_transition.time}"
+                    duplicate_index = bisect_left(
+                        self._transitions, StateTransition(time=time)
                     )
+                    if (
+                        0 <= duplicate_index < len(self._transitions)
+                        and self._transitions[duplicate_index].time == time
+                    ):
+                        raise ValueError(
+                            f"Tried to insert duplicate transition at '{time}'"
+                        )
+                    else:
+                        raise ValueError(
+                            f"Times of state transitions must be strictly increasing: "
+                            f"new transition at '{time}' happened before "
+                            f"latest transition at '{latest_transition.time}'"
+                        )
+
             self._transitions.append(transition)
 
         # Prune any transitions that happened outside of the time window in
@@ -384,7 +401,9 @@ class StateCache:
         metrics: Iterable[str],
         transition_debounce_window: Optional[Timedelta] = None,
         transition_postprocessor: Optional[TransitionPostprocessor] = None,
+        ignore_update_errors: bool = False,
     ):
+        self._ignore_update_errors = ignore_update_errors
         metrics = tuple(metrics)
         self._transition_histories: Dict[str, StateTransitionHistory] = {
             metric: StateTransitionHistory(time_window=transition_debounce_window)
@@ -415,8 +434,24 @@ class StateCache:
 
         try:
             metric_history.insert(time=timestamp, state=state)
-        except ValueError:
-            raise ValueError(f"Failed to update state history of {metric!r}")
+        except ValueError as e:
+            errmsg = f"Failed to update state history of {metric!r}"
+            if self._ignore_update_errors:
+                # If we could not update the insert a state transition, return
+                # early.  This does not update the state of the metric and, in
+                # particular, will not mark it as "not timed out".
+                # This is a failsafe: if insertion fails, this transition
+                # should not be regarded as valid.  It could be that, for
+                # example, non-monotonic value arrive for this metric. Such
+                # values indicate an error condition in the source, or worse,
+                # multiple sources for this metric being online.  So even if
+                # the datapoints themselves were within bounds, they are still
+                # abnormal and the check should only change state if a new *and
+                # valid* data points arrive.
+                logger.error("{}: {}", errmsg, e)
+                return
+            else:
+                raise ValueError(errmsg) from e
 
         postprocessed_state = self._transition_postprocessor.process(
             metric, state, timestamp, metric_history

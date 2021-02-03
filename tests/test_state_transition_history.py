@@ -1,5 +1,5 @@
 import logging
-from logging import getLogger
+import re
 
 import pytest
 from metricq.types import Timedelta, Timestamp
@@ -7,7 +7,7 @@ from metricq.types import Timedelta, Timestamp
 from metricq_sink_nsca.state import State
 from metricq_sink_nsca.state_cache import StateTransitionHistory
 
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -27,8 +27,8 @@ def test_history_set_epoch(empty_history):
 
 
 @pytest.fixture
-def history_with_epoch_set():
-    history = StateTransitionHistory(None)
+def history_with_epoch_set(empty_history):
+    history = empty_history
     history.insert(Timestamp(0), State.OK)
     return history
 
@@ -63,9 +63,24 @@ def test_history_non_monotonous(history_with_epoch_set, delta, caplog):
     history_with_epoch_set.insert(ts, State.OK)
 
     next_ts = ts + delta
-    with caplog.at_level(logging.WARNING):
+    with pytest.raises(ValueError):
         history_with_epoch_set.insert(next_ts, State.OK)
         assert "Times of state transitions must be strictly increasing" in caplog.text
+
+
+def test_history_non_monotonous_before_epoch(history_with_epoch_set):
+    with pytest.raises(ValueError, match=re.escape("at/before epoch")):
+        history_with_epoch_set.insert(history_with_epoch_set.epoch, State.OK)
+
+
+def test_history_non_monotonous_duplicate(history_with_epoch_set):
+    delta = Timedelta.from_s(1)
+    ts = history_with_epoch_set.epoch + delta
+    history_with_epoch_set.insert(ts, State.OK)
+    history_with_epoch_set.insert(ts + delta, State.OK)
+
+    with pytest.raises(ValueError, match=re.escape("duplicate")):
+        history_with_epoch_set.insert(ts, State.OK)
 
 
 @pytest.mark.parametrize(
