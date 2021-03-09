@@ -39,9 +39,8 @@ jobs:
           name: docs
 
       - name: Deploy generated HTML to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@3.7.1
+        uses: JamesIves/github-pages-deploy-action@4.1.0
         with:
-          ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BRANCH: gh-pages
-          FOLDER: ${{ env.OUTPUT_PATH }}
-          SINGLE_COMMIT: true
+          branch: gh-pages
+          folder: ${{ env.OUTPUT_PATH }}
+          single-commit: true
