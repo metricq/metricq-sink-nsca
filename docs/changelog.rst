@@ -1,6 +1,7 @@
 Changelog
 =========
 
+* :release:`1.6.1 <2021-03-23>`
 * :support:`19`: Update :code:`metricq` dependency to 2.0.0
 
 * :release:`1.6.0 <2020-12-04>`
