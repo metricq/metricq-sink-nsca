@@ -1,6 +1,8 @@
 Changelog
 =========
 
+* :support:`19`: Update :code:`metricq` dependency to 2.0.0
+
 * :release:`1.6.0 <2020-12-04>`
 * :support:`10`: :code:`metricq-sink-nsca` is now `available on PyPI <https://pypi.org/project/metricq-sink-nsca>`_!
 * :bug:`9 major` Gracefully handle non-monotonic metrics
