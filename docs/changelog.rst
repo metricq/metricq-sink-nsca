@@ -2,10 +2,10 @@ Changelog
 =========
 
 * :release:`1.6.1 <2021-03-23>`
-* :support:`19`: Update :code:`metricq` dependency to 2.0.0
+* :support:`19` Update :code:`metricq` dependency to 2.0.0
 
 * :release:`1.6.0 <2020-12-04>`
-* :support:`10`: :code:`metricq-sink-nsca` is now `available on PyPI <https://pypi.org/project/metricq-sink-nsca>`_!
+* :support:`10` :code:`metricq-sink-nsca` is now `available on PyPI <https://pypi.org/project/metricq-sink-nsca>`_!
 * :bug:`9 major` Gracefully handle non-monotonic metrics
 * :feature:`6` Add Sphinx-based documentation, read it `here <https://metricq.github.io/metricq-sink-nsca/>`_!
 * :feature:`3` Implement soft-fail post-processing for state changes
