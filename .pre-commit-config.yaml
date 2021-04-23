@@ -3,11 +3,11 @@ default_language_version:
 
 repos:
 - repo: https://gitlab.com/pycqa/flake8
-  rev: 3.8.3
+  rev: 3.9.1
   hooks:
   - id: flake8
 - repo: https://github.com/timothycrosley/isort
-  rev: 5.5.2
+  rev: 5.8.0
   hooks:
     - id: isort
       args:
@@ -21,6 +21,6 @@ repos:
         - "--check"
         - "--diff"
 - repo: https://github.com/mgedmin/check-manifest
-  rev: "0.43"
+  rev: "0.46"
   hooks:
     - id: check-manifest
