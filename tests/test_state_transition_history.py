@@ -1,3 +1,4 @@
+import logging
 from logging import getLogger
 
 import pytest
@@ -57,13 +58,14 @@ def test_history_monotonous(history_with_epoch_set):
         Timedelta.from_s(-1),
     ],
 )
-def test_history_non_monotonous(history_with_epoch_set, delta):
+def test_history_non_monotonous(history_with_epoch_set, delta, caplog):
     ts = history_with_epoch_set.epoch + Timedelta.from_s(1)
     history_with_epoch_set.insert(ts, State.OK)
 
     next_ts = ts + delta
-    with pytest.raises(ValueError):
+    with caplog.at_level(logging.WARNING):
         history_with_epoch_set.insert(next_ts, State.OK)
+        assert "Times of state transitions must be strictly increasing" in caplog.text
 
 
 @pytest.mark.parametrize(

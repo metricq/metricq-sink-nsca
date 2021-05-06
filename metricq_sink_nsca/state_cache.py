@@ -130,10 +130,10 @@ class StateTransitionHistory:
             if self._transitions:
                 latest_transition = self._transitions[-1]
                 if time <= latest_transition.time:
-                    raise ValueError(
+                    logger.warning(
                         f"Times of state transitions must be strictly increasing: "
-                        f"new transition at {time.posix_ns} is not after "
-                        f"latest transition at {latest_transition.time.posix_ns}"
+                        f"new transition at {time} is before "
+                        f"latest transition at {latest_transition.time}"
                     )
             self._transitions.append(transition)
 
