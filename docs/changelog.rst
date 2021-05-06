@@ -1,6 +1,9 @@
 Changelog
 =========
 
+* :release:`1.6.2 <2021-05-06>`
+* :bug:`23` Ignore non-monotonous data points
+
 * :release:`1.6.1 <2021-03-23>`
 * :support:`19` Update :code:`metricq` dependency to 2.0.0
 
