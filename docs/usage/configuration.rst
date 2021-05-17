@@ -96,7 +96,7 @@ Top-level configuration
     A measurement is invalid e.g. if its timestamp indicates a measurement in the past, relative to any measurement received so far.
 
     Default
-        :literal:`false`: All invalid metric values trigger a :literal:`CRITICAL` report for the associated check.
+        :literal:`true`: All invalid metric values are ignored and won't trigger a :literal:`CRITICAL` report for the associated check.
 
 Check configuration
 ^^^^^^^^^^^^^^^^^^^

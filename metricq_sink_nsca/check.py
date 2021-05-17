@@ -59,7 +59,7 @@ class Check:
         plugins: Optional[Dict[str, Dict]] = None,
         transition_debounce_window: Optional[Timedelta] = None,
         transition_postprocessing: Optional[Dict] = None,
-        ignore_update_errors: bool = False,
+        ignore_update_errors: bool = True,
     ):
         """Create value- and timeout-checks for a set of metrics
 

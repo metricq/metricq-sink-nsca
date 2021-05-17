@@ -242,7 +242,7 @@ class ReporterSink(metricq.DurableSink):
         nsca: dict,
         reporting_host: str = DEFAULT_HOSTNAME,
         resend_interval: str = "3min",
-        ignore_update_errors: bool = False,
+        ignore_update_errors: bool = True,
         **_kwargs,
     ) -> None:
         self._reporting_host = reporting_host
