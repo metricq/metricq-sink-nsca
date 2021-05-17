@@ -11,16 +11,13 @@ build-backend = 'setuptools.build_meta'
 line-length = 88
 target_version = ["py37", "py38"]
 include = '\.pyi?$'
-exclude = '''
+extend-exclude = '''
 (
-  /(
-      \.eggs         # exclude a few common directories in the
-    | \.git          # root of the project
-    | \.mypy_cache
+  /( # exclude a few common directories in the project root
+      \*\.eggs\?
+    | \.\w+_cache
     | \.tox
     | \.venv
-    | _build
-    | build
     | dist
     | venv
   )/
