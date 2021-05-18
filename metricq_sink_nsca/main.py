@@ -71,6 +71,6 @@ def main(metricq_server, token, dry_run):
         dry_run=dry_run,
         management_url=metricq_server,
         token=token,
-        loop=loop,
+        event_loop=loop,
     )
     reporter.run(cancel_on_exception=True)
