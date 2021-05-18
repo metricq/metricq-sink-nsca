@@ -1,11 +1,13 @@
 Changelog
 =========
 
+* :support:`-` Update :code:`metricq` dependency to 3.0.0
+
 * :release:`1.6.2 <2021-05-06>`
 * :bug:`23` Ignore non-monotonous data points
 
 * :release:`1.6.1 <2021-03-23>`
-* :support:`19` Update :code:`metricq` dependency to 2.0.0
+* :bug:`19` Update :code:`metricq` dependency to 2.0.0
 
 * :release:`1.6.0 <2020-12-04>`
 * :support:`10` :code:`metricq-sink-nsca` is now `available on PyPI <https://pypi.org/project/metricq-sink-nsca>`_!
