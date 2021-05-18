@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 import click
@@ -54,5 +55,22 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 @click.option("--dry-run", "-n", is_flag=True)
 @verbosity_option(root_logger)
 def main(metricq_server, token, dry_run):
-    reporter = ReporterSink(dry_run=dry_run, management_url=metricq_server, token=token)
+    try:
+        import uvloop
+
+        asyncio.get_event_loop().close()
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
+        logging.debug("Using uvloop as event loop")
+    except ImportError:
+        logging.debug("Using default event loop")
+
+    loop = asyncio.get_event_loop()
+
+    reporter = ReporterSink(
+        dry_run=dry_run,
+        management_url=metricq_server,
+        token=token,
+        loop=loop,
+    )
     reporter.run(cancel_on_exception=True)
