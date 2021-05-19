@@ -61,7 +61,7 @@ def main(metricq_server, token, dry_run):
         asyncio.get_event_loop().close()
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
-        logging.debug("Using uvloop as event loop")
+        logging.info("Using uvloop-based event loop")
     except ImportError:
         logging.debug("Using default event loop")
 
