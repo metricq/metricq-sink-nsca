@@ -42,6 +42,8 @@ class ReportQueue:
         self._queue.put_nowait(report)
 
     async def batch(self, timeout: Timedelta) -> AsyncIterator[Report]:
+        yield await self._queue.get()
+
         timeout_task = create_task(sleep(timeout.s))
 
         report_task: Optional[Task] = None
