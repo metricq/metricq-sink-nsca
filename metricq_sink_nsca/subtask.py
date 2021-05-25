@@ -39,6 +39,12 @@ class Subtask(Generic[Class]):
             self._task.cancel()
             self._task = None
 
+    async def stop(self):
+        if self._task is not None:
+            self._task.cancel()
+            await self._task
+            self._task = None
+
     def __repr__(self):
         return f"<Subtask: name={self._name!r} at {id(self):#x}>"
 

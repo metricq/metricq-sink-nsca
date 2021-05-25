@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 import pytest
@@ -42,8 +43,7 @@ async def run(timeout_check: TimeoutCheck) -> TimeoutCheck:
         await step()
         yield timeout_check
     finally:
-        timeout_check.cancel()
-        await step()
+        await asyncio.wait_for(timeout_check.stop(), timeout=1.0)
 
 
 @pytest.fixture(scope="function")
