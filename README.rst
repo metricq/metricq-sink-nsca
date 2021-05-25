@@ -22,6 +22,15 @@ Install the latest release of `metric-sink-nsca` from PyPI_:
 
     $ pip install metric-sink-nsca
 
+Optionally, install the :code:`[uvloop]` extra to use an optimized event loop implementation `based on uvloop <https://pypi.org/project/uvloop/>`_:
+
+.. code-block:: console
+
+    $ pip install 'metric-sink-nsca[uvloop]'
+
+Developement version
+~~~~~~~~~~~~~~~~~~~~
+
 To install the latest development version, clone
 `the repo <https://github.com/metricq/metricq-sink-nsca>`_ and install from source:
 
