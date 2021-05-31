@@ -1,12 +1,22 @@
 from asyncio import Task, create_task
 from functools import partial
-from typing import Awaitable, Callable, Generic, Optional, TypeVar
+from typing import (
+    Awaitable,
+    Callable,
+    Generic,
+    NoReturn,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from .logging import get_logger
 
 logger = get_logger(__name__)
 
-Class = TypeVar("Class")
+Class = TypeVar("Class", contravariant=True)
 
 _NOT_FOUND = object()
 
@@ -15,9 +25,11 @@ __all__ = [
     "Subtask",
 ]
 
+SubtaskReturnType = Awaitable[Union[None, NoReturn]]
+
 
 class Subtask(Generic[Class]):
-    def __init__(self, task_factory: Callable[[], Awaitable[None]], name: str):
+    def __init__(self, task_factory: Callable[[], SubtaskReturnType], name: str):
         self._task_factory = task_factory
         self._task: Optional[Task] = None
         self._name: str = name
@@ -49,9 +61,12 @@ class Subtask(Generic[Class]):
         return f"<Subtask: name={self._name!r} at {id(self):#x}>"
 
 
+SubtaskMethod = Callable[[Class], SubtaskReturnType]
+
+
 class SubtaskProxy(Generic[Class]):
-    def __init__(self, method: Callable[[Class], Awaitable[None]]):
-        self._task_method: Callable[[Class], Awaitable[None]] = method
+    def __init__(self, method: SubtaskMethod[Class]):
+        self._task_method: SubtaskMethod[Class] = method
         self.attrname: Optional[str] = None
 
         self.__doc__ = method.__doc__
@@ -65,6 +80,14 @@ class SubtaskProxy(Generic[Class]):
                 f"({self.attrname!r} and {name!r})."
             )
 
+    @overload
+    def __get__(self, instance: Class, _objtype: Type[Class] = None) -> Subtask[Class]:
+        ...
+
+    @overload
+    def __get__(self, instance: None, _objtype: Type[Class]) -> "SubtaskProxy[Class]":
+        ...
+
     def __get__(self, instance: Optional[Class], _objtype=None):
         if instance is None:
             return self
@@ -72,6 +95,7 @@ class SubtaskProxy(Generic[Class]):
         cls_name = type(instance).__name__
 
         try:
+            assert self.attrname is not None
             task = instance.__dict__.get(self.attrname, _NOT_FOUND)
         except AttributeError:  # not all objects have __dict__ (e.g. class defines slots)
             msg = (
@@ -96,5 +120,5 @@ class SubtaskProxy(Generic[Class]):
         return task
 
 
-def subtask(f: Callable[[Class], Awaitable[None]]):
+def subtask(f: SubtaskMethod[Class]) -> SubtaskProxy[Class]:
     return SubtaskProxy(f)
