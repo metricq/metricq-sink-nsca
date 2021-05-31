@@ -1,5 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
+from typing import cast
 
 import pytest
 from metricq.types import Timedelta, Timestamp
@@ -37,7 +38,7 @@ def timeout() -> Timedelta:
 
 
 @asynccontextmanager
-async def run(timeout_check: TimeoutCheck) -> TimeoutCheck:
+async def run(timeout_check: TimeoutCheck):
     try:
         timeout_check.start()
         await step()
