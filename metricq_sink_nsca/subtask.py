@@ -1,4 +1,5 @@
-from asyncio import Task, create_task
+from asyncio import CancelledError, Task, create_task
+from contextlib import suppress
 from functools import partial
 from typing import (
     Awaitable,
@@ -56,7 +57,8 @@ class Subtask(Generic[Class]):
         self.cancel()
         if self._task is not None:
             logger.debug("Waiting for subtask {!r} to finish...", self)
-            await self._task
+            with suppress(CancelledError):
+                await self._task
 
     def __repr__(self):
         return f"<Subtask: name={self._name!r} at {id(self):#x}>"
