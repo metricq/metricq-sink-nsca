@@ -113,7 +113,7 @@ class Check:
         self._timeout_checks: Optional[Dict[str, TimeoutCheck]] = None
 
         self._timeout: Optional[Timedelta] = timeout
-        if timeout is not None:
+        if self._timeout is not None:
             self._timeout_checks = {
                 metric: TimeoutCheck(
                     self._timeout,
@@ -195,7 +195,7 @@ class Check:
         )
 
     def _get_on_timeout_callback(self, metric) -> TimeoutCallback:
-        def on_timeout(timeout: Timedelta, last_timestamp: Optional[Timestamp]):
+        def on_timeout(*, timeout: Timedelta, last_timestamp: Optional[Timestamp]):
             logger.warning(f"Check {self._name!r}: {metric} timed out after {timeout}")
             self._state_cache.set_timed_out(metric, last_timestamp)
             self._trigger_report()
