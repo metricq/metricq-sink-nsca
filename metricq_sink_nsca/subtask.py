@@ -49,13 +49,14 @@ class Subtask(Generic[Class]):
         if self._task is not None:
             logger.debug("Cancelling subtask {!r}", self)
             self._task.cancel()
-            self._task = None
+        else:
+            logger.debug("Cancelling subtask {!r} that never ran!", self)
 
     async def stop(self):
+        self.cancel()
         if self._task is not None:
-            self._task.cancel()
+            logger.debug("Waiting for subtask {!r} to finish...", self)
             await self._task
-            self._task = None
 
     def __repr__(self):
         return f"<Subtask: name={self._name!r} at {id(self):#x}>"
