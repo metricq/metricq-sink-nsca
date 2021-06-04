@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-from asyncio import sleep
+from asyncio import CancelledError, sleep
 from typing import Dict, Iterable, NamedTuple, Optional, Set
 
 from metricq.types import Timedelta, Timestamp
@@ -297,10 +297,14 @@ class Check:
 
     @subtask
     async def heartbeat(self) -> None:
-        while True:
-            await sleep(self._resend_interval.s)
-            logger.debug('Sending heartbeat for check "{}"', self._name)
-            self._trigger_report(force=True)
+        try:
+            while True:
+                await sleep(self._resend_interval.s)
+                logger.debug('Sending heartbeat for check "{}"', self._name)
+                self._trigger_report(force=True)
+        except CancelledError:
+            logger.info('Cancelling heartbeat task for "{}"', self._name)
+            raise
 
     def start(self) -> None:
         if self._has_timeout_checks():
