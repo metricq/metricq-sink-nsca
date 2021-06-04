@@ -24,7 +24,7 @@ from dataclasses import fields as dataclass_fields
 from itertools import accumulate
 from math import isnan
 from socket import gethostname
-from typing import Dict, Iterable, Optional
+from typing import Any, Callable, Dict, Iterable, Optional, TypeVar
 
 import metricq
 from metricq import Timedelta, Timestamp
@@ -88,8 +88,12 @@ class ReporterSink(metricq.DurableSink):
         self._checks = dict()
 
     def _parse_check_from_config(self, name: str, config: dict) -> Check:
-        def config_get(cfg_key: str, convert_with=None, default=None) -> Optional:
-            value = config.get(cfg_key)
+        T = TypeVar("T")
+
+        def config_get(
+            cfg_key: str, *, default: T, convert_with: Callable[[Any], T] = None
+        ) -> T:
+            value: Optional[T] = config.get(cfg_key)
             if value is None:
                 return default
             else:
@@ -131,6 +135,10 @@ class ReporterSink(metricq.DurableSink):
         timeout: Optional[Timedelta] = config_get(
             "timeout", convert_with=Timedelta.from_string, default=None
         )
+
+        assert (
+            self._global_resend_interval is not None
+        ), "No global resend interval was set. This is a bug."
         resend_interval: Timedelta = config_get(
             "resend_interval",
             convert_with=Timedelta.from_string,
