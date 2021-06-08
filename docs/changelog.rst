@@ -1,6 +1,7 @@
 Changelog
 =========
 
+* :support:`33` Miscellaneous fixes and improvements
 * :feature:`27` (via :issue:`26`) Optionally use :code:`uvloop`-based event loop.
   To enable, install :code:`uvloop` directly, or the :code:`[uvloop]` extra
   (:code:`pip install 'metricq-sink-nsca[uvloop]'`).

@@ -1,11 +1,16 @@
+import asyncio
 from contextlib import asynccontextmanager
+from typing import cast
 
 import pytest
 from metricq.types import Timedelta, Timestamp
 
+from metricq_sink_nsca.logging import get_logger
 from metricq_sink_nsca.timeout_check import TimeoutCallback, TimeoutCheck
 
 from .conftest import sleep, step
+
+logger = get_logger(__name__)
 
 pytestmark = pytest.mark.asyncio
 
@@ -20,6 +25,7 @@ class Callback(TimeoutCallback):
         self.called = True
         self.timeout = timeout
         self.last_timestamp = last_timestamp
+        logger.info("Callback called: {!r}", self)
 
     def __repr__(self):
         return f"<Callback: called={self.called!r}, timeout={self.timeout!r}, last_timestamp={self.last_timestamp!r}>"
@@ -36,14 +42,13 @@ def timeout() -> Timedelta:
 
 
 @asynccontextmanager
-async def run(timeout_check: TimeoutCheck) -> TimeoutCheck:
+async def run(timeout_check: TimeoutCheck):
     try:
         timeout_check.start()
         await step()
         yield timeout_check
     finally:
-        timeout_check.cancel()
-        await step()
+        await asyncio.wait_for(timeout_check.stop(), timeout=1.0)
 
 
 @pytest.fixture(scope="function")
@@ -70,7 +75,8 @@ async def test_timeout_check_bump_once(timeout_check: TimeoutCheck):
 
     await step()
 
-    assert not timeout_check._timeout_callback.called
+    callback = cast(Callback, timeout_check._timeout_callback)
+    assert not callback.called
     assert timeout_check._last_timestamp == now
 
 

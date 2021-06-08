@@ -60,6 +60,9 @@ class TimeoutCheck:
     def cancel(self):
         self._run.cancel()
 
+    async def stop(self):
+        await self._run.stop()
+
     def bump(self, last_timestamp: Timestamp):
         self._last_timestamp = last_timestamp
         self._throttle = False

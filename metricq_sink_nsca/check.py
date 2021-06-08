@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-from asyncio import sleep
+from asyncio import CancelledError, sleep
 from typing import Dict, Iterable, NamedTuple, Optional, Set
 
 from metricq.types import Timedelta, Timestamp
@@ -113,7 +113,7 @@ class Check:
         self._timeout_checks: Optional[Dict[str, TimeoutCheck]] = None
 
         self._timeout: Optional[Timedelta] = timeout
-        if timeout is not None:
+        if self._timeout is not None:
             self._timeout_checks = {
                 metric: TimeoutCheck(
                     self._timeout,
@@ -195,7 +195,7 @@ class Check:
         )
 
     def _get_on_timeout_callback(self, metric) -> TimeoutCallback:
-        def on_timeout(timeout: Timedelta, last_timestamp: Optional[Timestamp]):
+        def on_timeout(*, timeout: Timedelta, last_timestamp: Optional[Timestamp]):
             logger.warning(f"Check {self._name!r}: {metric} timed out after {timeout}")
             self._state_cache.set_timed_out(metric, last_timestamp)
             self._trigger_report()
@@ -297,10 +297,14 @@ class Check:
 
     @subtask
     async def heartbeat(self) -> None:
-        while True:
-            await sleep(self._resend_interval.s)
-            logger.debug('Sending heartbeat for check "{}"', self._name)
-            self._trigger_report(force=True)
+        try:
+            while True:
+                await sleep(self._resend_interval.s)
+                logger.debug('Sending heartbeat for check "{}"', self._name)
+                self._trigger_report(force=True)
+        except CancelledError:
+            logger.info('Cancelling heartbeat task for "{}"', self._name)
+            raise
 
     def start(self) -> None:
         if self._has_timeout_checks():
