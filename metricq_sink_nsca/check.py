@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
-from asyncio import CancelledError, sleep
+from asyncio import CancelledError, gather, sleep
 from typing import Dict, Iterable, NamedTuple, Optional, Set
 
 from metricq.types import Timedelta, Timestamp
@@ -319,6 +319,13 @@ class Check:
                 check.cancel()
 
         self.heartbeat.cancel()
+
+    async def stop(self):
+        self.cancel()
+        await gather(
+            self.heartbeat.stop(),
+            *(check.stop() for check in self._timeout_checks.values()),
+        )
 
     def metrics(self) -> Iterable[str]:
         return self._metrics

@@ -1,6 +1,7 @@
 Changelog
 =========
 
+* :bug:`29` Fix a bug where checks would report a timeout error even after they were removed via dynamic reconfiguration.
 * :support:`33` Miscellaneous fixes and improvements
 * :feature:`27` (via :issue:`26`) Optionally use :code:`uvloop`-based event loop.
   To enable, install :code:`uvloop` directly, or the :code:`[uvloop]` extra

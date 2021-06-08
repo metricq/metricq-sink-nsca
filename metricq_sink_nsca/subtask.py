@@ -1,4 +1,5 @@
-from asyncio import Task, create_task
+from asyncio import CancelledError, Task, create_task
+from contextlib import suppress
 from functools import partial
 from typing import (
     Awaitable,
@@ -49,13 +50,15 @@ class Subtask(Generic[Class]):
         if self._task is not None:
             logger.debug("Cancelling subtask {!r}", self)
             self._task.cancel()
-            self._task = None
+        else:
+            logger.debug("Cancelling subtask {!r} that never ran!", self)
 
     async def stop(self):
+        self.cancel()
         if self._task is not None:
-            self._task.cancel()
-            await self._task
-            self._task = None
+            logger.debug("Waiting for subtask {!r} to finish...", self)
+            with suppress(CancelledError):
+                await self._task
 
     def __repr__(self):
         return f"<Subtask: name={self._name!r} at {id(self):#x}>"

@@ -34,10 +34,8 @@ async def test_subtask_start_stop(endless_task):
 
     async with while_running(endless_task) as task:
         assert not task._task.done()
-        save_task = task._task
 
-    assert endless_task._task is None
-    assert save_task.done()
+    assert endless_task._task.done()
 
 
 @pytest.mark.asyncio
@@ -85,10 +83,9 @@ async def test_subtask_decorator_start_stop():
 
     async with while_running(test.endless) as task:
         assert not task._task.done()
-        save_task = task._task
 
-    assert test.endless._task is None
-    assert save_task.done()
+    assert test.endless._task is not None
+    assert test.endless._task.done()
 
 
 def test_subtask_no_dunder_dict():

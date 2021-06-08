@@ -103,6 +103,7 @@ class TimeoutCheck:
                         await self._run_timeout_callback_after(wait_duration)
         except CancelledError:
             logger.info("{!r}: stopped", self)
+            raise
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(
                 "{!r}: unexpected error inside TimeoutCheck callback: {}", self, e
