@@ -11,6 +11,30 @@
       "resend_interval": {
           "$ref": "#/definitions/duration",
           "description": "Minimum time interval at which a check should trigger reports, even if its overall state did not change.\nThis is useful for keeping the Centreon/Nagios host up-to-date and signaling that this passive check is not dead."
+      },
+      "overrides": {
+          "type": "object",
+          "properties": {
+              "ignored_metrics": {
+                  "type": "array",
+                  "items": {
+                      "oneOf": [
+                          { "$ref": "#/definitions/metric_name" },
+                          { "$ref": "#/definitions/metric_name_prefix_pattern" }
+                      ]
+                  },
+                  "default": []
+              }
+          }
+      },
+      "metric_name": {
+          "type": "string",
+          "pattern": "^([a-zA-Z][a-zA-Z0-9_]+\\.)+[a-zA-Z][a-zA-Z0-9_]+$"
+      },
+      "metric_name_prefix_pattern": {
+          "type": "string",
+          "pattern": "^([a-zA-Z][a-zA-Z0-9_]+\\.)*\\*$",
+          "examples": ["foo.bar.*"]
       }
   },
   "properties": {
@@ -42,6 +66,9 @@
     },
     "resend_interval": {
         "$ref": "#/definitions/resend_interval"
+    },
+    "overrides": {
+        "$ref": "#/definitions/overrides"
     },
     "checks": {
       "type": "object",

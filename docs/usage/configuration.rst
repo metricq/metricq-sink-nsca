@@ -43,6 +43,8 @@ Top-level configuration
 :code:`nsca`
     A dictionary of :ref:`NSCA host settings`.
 
+.. _checks:
+
 :code:`checks`
     A dictionary of :ref:`check configurations<Check configuration>` by name.
 
@@ -84,6 +86,19 @@ Top-level configuration
     Default
         :literal:`"3min"`
 
+.. _overrides:
+
+:code:`overrides`
+    An object of global overrides that affect operation of all :ref:`checks<checks>`.
+    See :ref:`override configuration<override-configuration>`.
+
+    Default
+        If omitted, no overrides are applied.
+
+
+
+.. _check-configuration:
+
 Check configuration
 ^^^^^^^^^^^^^^^^^^^
 
@@ -93,7 +108,10 @@ and reports and `overall state`: if values of a single metric exceed their :ref:
 or there are no new values after :ref:`a certain time<timeout>`
 a state of :literal:`WARNING` or :literal:`CRITICAL` is reported.
 
+.. _check-metrics:
+
 :code:`metrics` (list of strings)
+
     A list of metrics that should be monitored.
 
     This list is **mandatory** and required to be *non-empty*.
@@ -286,6 +304,129 @@ These settings tell the reporter where it should send its check results and how 
     Default:
         :literal:`"/etc/nsca/send_nsca.cfg"`
 
+.. _override-configuration:
+
+Override configuration
+^^^^^^^^^^^^^^^^^^^^^^
+
+Overrides should be used to temporarily reconfigure a checker instance,
+e.g. when a planned maintainance affects the availability of certain metrics.
+
+The override configuration contains the following keys to define overrides:
+
+* :code:`ignored_metrics` (list of metric patterns)
+    Each item in this list is a :ref:`metric pattern<metric-pattern>` that matches either one or multiple metrics.
+    If a check defines a :ref:`metric<check-metrics>` that matches
+    `at least one` of these patterns, this metric is completely ignored by that check.
+    In particular, neither :ref:`abnormal values<abnormal-ranges>` nor
+    :ref:`timeout conditions<timeout>` will trigger any reports to be sent.
+
+    Put a metric on this list if you want to temporarily exclude it from all :ref:`checks<checks>`,
+    without deleting it from the actual :ref:`check configuration<check-configuration>`.
+    This prevents misconfigurations where a metric had to be temporarily ignored,
+    but later was not added back to all checks from which it was removed.
+
+    .. _metric-pattern:
+
+    A `metric pattern` can be one the following:
+
+    An `exact match`
+        The full name of a metric.
+        `Exactly` this metric will be ignored.
+
+    A `prefix match`
+        A metric name consists of `components` separated by :literal:`.`.
+        All metrics that share a common prefix of components can be matched at once.
+        Write the prefix,
+        followed by the `wildcard` component :literal:`*`.
+
+        Example
+            :literal:`foo.*` matches :literal:`foo.bar.baz`,
+            :literal:`foo.qux` and any other metric
+            whose first component is :literal:`foo`.
+
+        ..
+            EBNF like syntax:
+            <prefix-match> ::= { <prefix-component>, '.' }, '*';
+
+    .. note::
+        The exact pattern syntax might be extended in the future in an incompatible way.
+        In particular, it is currently neither possible to match `parts` of components
+        (i.e. no :literal:`foo.b*r`) nor non-prefix components (no :literal:`foo.*.baz`).
+        This might change in the future.
+
+        Overrides should be temporary;
+        before upgrading to a new feature release, check that your overrides are still valid.
+
+    Default
+        If omitted, no metrics will be ignored for any check.
+
+    Example
+        We can use an `exact match` to ignore exactly one metric:
+
+        .. code-block:: json
+
+            {
+                "overrides": {
+                    "ignored_metrics": [
+                        "waldo.location.latitude",
+                        "waldo.location.longitude"
+                    ]
+                },
+                "checks": {
+                    "TRACK_WALDO": {
+                        "metrics": [
+                            "waldo.location.latitude",
+                            "waldo.location.longitude",
+                            "waldo.hidden.duration"
+                        ],
+                        "timeout": "5min"
+                    }
+                }
+            }
+
+        In the above example, only :literal:`waldo.hidden.duration`
+        is checked by :literal:`TRACK_WALDO` for timeout conditions,
+        both :literal:`waldo.location.latitude` and :literal:`waldo.location.longitude`
+        are ignored.
+
+    Example
+        To easily match multiple metrics, we can use a `prefix match`:
+
+        .. code-block:: json
+
+            {
+                "overrides": {
+                    "ignored_metrics": [
+                        "santa.*"
+                    ]
+                },
+                "checks": {
+                    "LATITUDE_VALID": {
+                        "metrics": [
+                            "waldo.location.latitude",
+                            "santa.location.latitude",
+                        ],
+                        "critical_above": 90.0,
+                        "critical_below": -90.0
+                    },
+                    "LONGITUDE_VALID": {
+                        "metrics": [
+                            "waldo.location.longitude",
+                            "santa.location.longitude",
+                        ],
+                        "critical_above": 180.0,
+                        "critical_below": -180.0
+                    }
+                }
+            }
+
+        In the above example, neither :literal:`santa.location.latitude`
+        nor :literal:`santa.location.longitude` are checked by :literal:`LATITUDE_VALID`
+        and :literal:`LONGITUDE_VALID`, respectively.
+        In fact, any metric that had :literal:`santa` as its first component would be ignored.
+
+
 Plugin configuration
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -318,6 +459,7 @@ Examples
     * :literal:`"5s"`, :literal:`"5"` (5 seconds)
     * :literal:`"42 milliseconds"`
     * :literal:`"1.5 days"`
+
 
 Complete Example
 ----------------
