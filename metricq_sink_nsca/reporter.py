@@ -220,10 +220,8 @@ class ReporterSink(metricq.DurableSink):
         for name, config in check_config.items():
             self._add_check(name, config)
 
-    async def _update_checks(
-        self, updated_check_config: Dict[str, CheckConfig]
-    ) -> None:
-        new = set(updated_check_config.keys())
+    async def _update_checks(self, updated_config: Dict[str, CheckConfig]) -> None:
+        new = set(updated_config.keys())
         old = set(self._checks.keys())
 
         to_remove = old - new
@@ -235,22 +233,22 @@ class ReporterSink(metricq.DurableSink):
         )
 
         for name in to_add:
-            self._add_check(name, updated_check_config[name])
+            self._add_check(name, updated_config[name])
 
         to_update = dict()
         for name in to_update_candidate:
             old_config = self._check_configs[name]
-            updated_config = updated_check_config[name]
-            if updated_config != old_config:
-                to_update[name] = updated_config
+            new_config = updated_config[name]
+            if new_config != old_config:
+                to_update[name] = new_config
             else:
                 logger.info("Skipping update of unchanged check {}", name)
 
-        async def remove_and_add(name: str, updated_config: CheckConfig):
+        async def remove_and_add(name: str, new_config: CheckConfig):
             logger.info('Removing out-of-date check "{}"...', name)
             await self._remove_check(name, timeout=1.0)
             logger.info('Adding check "{}" with updated configuration', name)
-            self._add_check(name, updated_config)
+            self._add_check(name, new_config)
 
         await asyncio.gather(
             *(remove_and_add(name, config) for name, config in to_update.items())
