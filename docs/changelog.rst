@@ -1,6 +1,8 @@
 Changelog
 =========
 
+* :bug:`35` Fix a bug where reconfiguration of a check configuration at runtime would result in an error or misconfiguration.
+
 * :release:`1.7.0 <2021-06-08>`
 * :bug:`29 major` Fix a bug where checks would report a timeout error even after they were removed via dynamic reconfiguration.
 * :support:`33` Miscellaneous fixes and improvements
