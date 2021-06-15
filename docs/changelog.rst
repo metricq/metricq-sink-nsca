@@ -1,6 +1,7 @@
 Changelog
 =========
 
+* :release:`1.7.1 <2021-15-08>`
 * :bug:`35` Fix a bug where reconfiguration of a check configuration at runtime would result in an error or misconfiguration.
 
 * :release:`1.7.0 <2021-06-08>`
