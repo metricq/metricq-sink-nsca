@@ -24,7 +24,7 @@ from dataclasses import fields as dataclass_fields
 from itertools import accumulate
 from math import isnan
 from socket import gethostname
-from typing import Any, Callable, Dict, Iterable, Optional, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, Optional, TypedDict, TypeVar
 
 import metricq
 from metricq import Timedelta, Timestamp
@@ -53,6 +53,23 @@ class NscaReport:
     service: str
     state: State
     message: str
+
+
+Metric = str
+DurationStr = str
+
+
+class CheckConfig(TypedDict):
+    metrics: List[Metric]
+    warning_above: Optional[float]
+    warning_below: Optional[float]
+    critical_above: Optional[float]
+    critical_below: Optional[float]
+    timeout: Optional[DurationStr]
+    ignore: Optional[List[float]]
+    resend_interval: Optional[DurationStr]
+    transition_debounce_window: Optional[DurationStr]
+    plugins: dict
 
 
 DEFAULT_HOSTNAME = gethostname()
@@ -87,7 +104,7 @@ class ReporterSink(metricq.DurableSink):
 
         self._checks = dict()
 
-    def _parse_check_from_config(self, name: str, config: dict) -> Check:
+    def _parse_check_from_config(self, name: str, config: CheckConfig) -> Check:
         T = TypeVar("T")
 
         def config_get(
@@ -175,7 +192,7 @@ class ReporterSink(metricq.DurableSink):
             transition_postprocessing=transition_postprocessing,
         )
 
-    def _add_check(self, name: str, config: dict):
+    def _add_check(self, name: str, config: CheckConfig):
         if not self._checks:
             self._checks = dict()
         logger.info('Adding check "{}"', name)
@@ -198,12 +215,14 @@ class ReporterSink(metricq.DurableSink):
             else:
                 logger.warn('Check "{}" did not exist', name)
 
-    def _init_checks(self, check_config) -> None:
+    def _init_checks(self, check_config: Dict[str, CheckConfig]) -> None:
         self._checks = dict()
         for name, config in check_config.items():
             self._add_check(name, config)
 
-    async def _update_checks(self, updated_check_config) -> None:
+    async def _update_checks(
+        self, updated_check_config: Dict[str, CheckConfig]
+    ) -> None:
         new = set(updated_check_config.keys())
         old = set(self._checks.keys())
 
@@ -227,11 +246,11 @@ class ReporterSink(metricq.DurableSink):
             else:
                 logger.info("Skipping update of unchanged check {}", name)
 
-        async def remove_and_add(name: str, updated_config: dict):
+        async def remove_and_add(name: str, updated_config: CheckConfig):
             logger.info('Removing out-of-date check "{}"...', name)
             await self._remove_check(name, timeout=1.0)
             logger.info('Adding check "{}" with updated configuration', name)
-            self._add_check(name, updated_check_config)
+            self._add_check(name, updated_config)
 
         await asyncio.gather(
             *(remove_and_add(name, config) for name, config in to_update.items())
