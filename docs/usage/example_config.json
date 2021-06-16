@@ -1,5 +1,5 @@
 {
-    "$schema": "https://raw.githubusercontent.com/metricq/metricq-sink-nsca/master/config.schema.json",
+    "$schema": "../../config.schema.json",
     "nsca": {
         "host": "nsca.example.com",
         "port": 5667,
