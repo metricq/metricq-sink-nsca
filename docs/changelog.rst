@@ -1,6 +1,9 @@
 Changelog
 =========
 
+* :feature:`34` Add a way to globally ignore a set of metrics via the :literal:`"overrides"` section in the configuration.
+  See :ref:`the documentation<overrides>` for more information.
+
 * :release:`1.7.1 <2021-15-08>`
 * :bug:`35` Fix a bug where reconfiguration of a check configuration at runtime would result in an error or misconfiguration.
 

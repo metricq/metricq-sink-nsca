@@ -24,13 +24,24 @@ from dataclasses import fields as dataclass_fields
 from itertools import accumulate
 from math import isnan
 from socket import gethostname
-from typing import Any, Callable, Dict, Iterable, List, Optional, TypedDict, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    TypedDict,
+    TypeVar,
+)
 
 import metricq
 from metricq import Timedelta, Timestamp
 
 from .check import Check, TvPair
 from .logging import get_logger
+from .override import Metric, Overrides
 from .report_queue import Report, ReportQueue
 from .state import State
 from .subtask import subtask
@@ -55,7 +66,6 @@ class NscaReport:
     message: str
 
 
-Metric = str
 DurationStr = str
 
 
@@ -86,6 +96,7 @@ class ReporterSink(metricq.DurableSink):
         self._nsca_config: Optional[NscaConfig] = None
         self._checks: Dict[str, Check] = dict()
         self._check_configs: Dict[str] = dict()
+        self._overrides: Overrides = Overrides.empty()
         self._has_value_checks: bool = False
         self._global_resend_interval: Optional[Timedelta] = None
         self._report_queue = ReportQueue()
@@ -104,6 +115,36 @@ class ReporterSink(metricq.DurableSink):
 
         self._checks = dict()
 
+    def _collect_check_metrics(
+        self, name: str, config: dict, overrides: Overrides
+    ) -> Set[Metric]:
+        """Gather a set of all metrics defined for this check.
+
+        Metrics that are contained in :code:`overrides.ignored_metrics` will not be returned.
+        """
+        all_metrics = config.get("metrics", [])
+
+        if not isinstance(all_metrics, list):
+            raise TypeError(f"Check {name!r} must contain a list of metrics")
+
+        if not all_metrics:
+            raise ValueError(f"Check {name!r} does not contain any metrics")
+
+        metrics = {
+            metric for metric in all_metrics if metric not in overrides.ignored_metrics
+        }
+
+        ignored = set(all_metrics) - metrics
+        if ignored:
+            logger.info(
+                "Override in effect for {!r}: {}/{} metric(s) matched a rule and will be ignored",
+                name,
+                len(ignored),
+                len(all_metrics),
+            )
+
+        return set(metrics)
+
     def _parse_check_from_config(self, name: str, config: CheckConfig) -> Check:
         T = TypeVar("T")
 
@@ -121,18 +162,7 @@ class ReporterSink(metricq.DurableSink):
                         f'Invalid config key "{cfg_key}"={value}: {e}'
                     ) from e
 
-        metrics = config.get("metrics")
-        if metrics is None:
-            raise ValueError("Check does not contain any metrics")
-
-        if not (
-            isinstance(metrics, list)
-            and len(metrics) > 0
-            and all(isinstance(m, str) for m in metrics)
-        ):
-            raise ValueError(
-                'Configured key "metrics" must be a nonempty list of metric names'
-            )
+        metrics = self._collect_check_metrics(name, config, overrides=self._overrides)
 
         # extract ranges for warnable and critical values from the config,
         # each key is optional
@@ -256,6 +286,7 @@ class ReporterSink(metricq.DurableSink):
 
     async def connect(self):
         await super().connect()
+        logger.info("Successfully connected to the MetricQ network")
         metrics = set().union(
             *(
                 set(check.metrics()) | set(check.extra_metrics())
@@ -279,6 +310,7 @@ class ReporterSink(metricq.DurableSink):
         nsca: dict,
         reporting_host: str = DEFAULT_HOSTNAME,
         resend_interval: str = "3min",
+        overrides: Optional[dict] = None,
         **_kwargs,
     ) -> None:
         self._reporting_host = reporting_host
@@ -290,6 +322,15 @@ class ReporterSink(metricq.DurableSink):
                 if cfg_key in set(f.name for f in dataclass_fields(NscaConfig))
             }
         )
+
+        if overrides is not None:
+            try:
+                self._overrides = Overrides.from_config(overrides)
+            except (ValueError, TypeError) as e:
+                logger.error("Invalid overrides section in configuration: {}", e)
+                raise
+        else:
+            logger.debug('Configuration did not contain an "overrides" section')
 
         try:
             self._global_resend_interval = Timedelta.from_string(resend_interval)

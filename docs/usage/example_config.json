@@ -1,10 +1,15 @@
 {
-    "$schema": "https://raw.githubusercontent.com/metricq/metricq-sink-nsca/master/config.schema.json",
+    "$schema": "../../config.schema.json",
     "nsca": {
         "host": "nsca.example.com",
         "port": 5667,
         "executable": "/opt/nsca/bin/send_nsca",
         "config_file": "/opt/nsca/etc/send_nsca.cfg"
+    },
+    "overrides": {
+        "ignored_metrics": [
+            "foo.qux.*"
+        ]
     },
     "reporting_host": "foo",
     "resend_interval": "2min",
@@ -12,7 +17,9 @@
         "foo": {
             "metrics": [
                 "foo.bar",
-                "foo.baz"
+                "foo.baz",
+                "foo.qux.ignored1",
+                "foo.qux.ignored2"
             ],
             "critical_below": 5.0,
             "warning_below": 10.0,
