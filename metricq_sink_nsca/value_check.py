@@ -19,7 +19,7 @@
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
 import math
-from typing import Iterable, List, Optional, TypedDict
+from typing import List, Optional, TypedDict
 
 from .state import State
 
@@ -67,7 +67,7 @@ class ValueCheck:
         warning_above: float = math.inf,
         critical_below: float = -math.inf,
         critical_above: float = math.inf,
-        ignore: Optional[Iterable[float]] = None,
+        ignore: Optional[List[float]] = None,
     ):
         if not (critical_below <= warning_below < warning_above <= critical_above):
             raise ValueError(
@@ -81,14 +81,21 @@ class ValueCheck:
         self._ignore = set() if ignore is None else set(ignore)
 
     @staticmethod
-    def from_config(config: ValueCheckConfig) -> "ValueCheck":
-        return ValueCheck(
-            warning_below=config.get("warning_below", -math.inf),
-            warning_above=config.get("warning_above", math.inf),
-            critical_below=config.get("critical_below", -math.inf),
-            critical_above=config.get("critical_above", math.inf),
-            ignore=config.get("ignore"),
-        )
+    def from_config(config: ValueCheckConfig) -> Optional["ValueCheck"]:
+        constraints = {
+            c: config[c]
+            for c in (
+                "warning_below",
+                "warning_above",
+                "critical_below",
+                "critical_above",
+            )
+            if c in config
+        }
+        if not constraints:
+            return None
+        else:
+            return ValueCheck(**constraints, ignore=config.get("ignore", []))
 
     @property
     def warning_range(self):
