@@ -385,7 +385,7 @@ class StateCache:
         transition_debounce_window: Optional[Timedelta] = None,
         transition_postprocessor: Optional[TransitionPostprocessor] = None,
     ):
-        metrics = tuple(metrics)
+        metrics = set(metrics)
         self._transition_histories: Dict[str, StateTransitionHistory] = {
             metric: StateTransitionHistory(time_window=transition_debounce_window)
             for metric in metrics
@@ -397,7 +397,7 @@ class StateCache:
             State.OK: set(),
             State.WARNING: set(),
             State.CRITICAL: set(),
-            State.UNKNOWN: set(metrics),
+            State.UNKNOWN: metrics,
         }
         self._timed_out: Dict[str, Optional[Timestamp]] = dict()
 
