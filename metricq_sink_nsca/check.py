@@ -327,7 +327,7 @@ class Check:
             *(check.stop() for check in self._timeout_checks.values()),
         )
 
-    def metrics(self) -> Iterable[str]:
+    def metrics(self) -> Set[str]:
         return self._metrics
 
     def extra_metrics(self) -> Iterable[str]:
