@@ -1,6 +1,7 @@
 Changelog
 =========
 
+* :release:`1.8.0 <2021-06-29>`
 * :feature:`34` Add a way to globally ignore a set of metrics via the :literal:`"overrides"` section in the configuration.
   See :ref:`the documentation<overrides>` for more information.
 
