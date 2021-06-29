@@ -1,10 +1,14 @@
 import importlib
 from abc import ABC, abstractmethod
-from typing import Callable, Iterable, Protocol, Set
+from typing import Callable, Iterable, List, Protocol, Set, TypedDict
 
 from metricq import Timestamp
 
+from .config_parser import Metric
+from .logging import get_logger
 from .state import State
+
+logger = get_logger(__name__)
 
 
 class Plugin(ABC):
@@ -104,3 +108,27 @@ def load(name: str, file: str, metrics: Set[str], config: dict) -> Plugin:
     plugin.__extra_metrics = set(plugin.extra_metrics())
 
     return plugin
+
+
+class PluginConfig(TypedDict):
+    file: str
+    metrics: List[Metric]
+    config: dict
+
+
+def load_from_config(name: str, pluging_config: PluginConfig) -> Plugin:
+    file = pluging_config.get("file")
+    if file is None:
+        raise ValueError(
+            f'Cannot load plugin "{name}": "file" is required for plugin configuration'
+        )
+
+    metrics = set(pluging_config.get("metrics", []))
+    config = pluging_config.get("config", {})
+
+    logger.info("Loading plugin {} from {}", name, file)
+    try:
+        return load(name, file, metrics, config=config)
+    except Exception:
+        logger.exception("Failed to load plugin {!r} from {!r}", name, file)
+        raise

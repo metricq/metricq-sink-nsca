@@ -19,15 +19,14 @@
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
 from asyncio import CancelledError, gather, sleep
-from typing import Dict, Iterable, List, NamedTuple, Optional, Set, TypedDict
+from typing import Dict, Iterable, List, NamedTuple, Optional, Set
 
 from metricq.types import Timedelta, Timestamp
 
 from .config_parser import DurationStr, Metric, parse_timedelta
 from .logging import get_logger
 from .override import Overrides
-from .plugin import Plugin
-from .plugin import load as load_plugin
+from .plugin import Plugin, PluginConfig, load_from_config
 from .report_queue import Report, ReportQueue
 from .state import State
 from .state_cache import StateCache, TransitionPostprocessor
@@ -49,13 +48,7 @@ class CheckConfig(ValueCheckConfig, total=False):
     resend_interval: DurationStr
     transition_debounce_window: DurationStr
     transition_postprocessing: dict
-    plugins: dict
-
-
-class PluginConfig(TypedDict):
-    file: str
-    metrics: List[Metric]
-    config: dict
+    plugins: Dict[str, PluginConfig]
 
 
 class Check:
@@ -174,31 +167,12 @@ class Check:
             config.get("transition_postprocessing")
         )
 
-        plugin_configs: Dict[str, PluginConfig] = config.get("plugins", {})
-        plugins: Dict[str, Plugin] = dict()
-        if plugin_configs:
-            logger.info("Check {!r}: loading {} plugin(s)", name, len(plugin_configs))
-            for plugin_name, plugin_config in plugin_configs.items():
-                file = plugin_config["file"]
-                try:
-                    plugin = load_plugin(
-                        name,
-                        file,
-                        set(plugin_config["metrics"]),
-                        plugin_config["config"],
-                    )
-                except Exception:
-                    logger.exception(
-                        "Check {!r}: failed to load plugin {!r} from {!r}",
-                        name,
-                        plugin_name,
-                        file,
-                    )
-                    raise
-                logger.info(
-                    "Check {!r}: loaded plugin {!r} from {}", name, plugin_name, file
-                )
-                plugins[plugin_name] = plugin
+        plugins = {
+            plugin_name: load_from_config(plugin_name, plugin_config)
+            for plugin_name, plugin_config in config.get("plugins", {}).items()
+        }
+        if plugins:
+            logger.info("Loaded {} plugin(s)", len(plugins))
 
         return Check(
             name,
@@ -329,11 +303,9 @@ class Check:
 
     def update_extra_metric(self, extra_metric: str, tv_pairs: Iterable[TvPair]):
         for timestamp, value in tv_pairs:
-            for plugin_name in self._plugins:
-                if extra_metric in self._plugins[plugin_name].__extra_metrics:
-                    self._plugins[plugin_name].on_extra_metric(
-                        extra_metric, timestamp, value
-                    )
+            for plugin in self._plugins.values():
+                if extra_metric in plugin.__extra_metrics:
+                    plugin.on_extra_metric(extra_metric, timestamp, value)
 
     # TODO: rename
     def check(self, metric: str, tv_pairs: Iterable[TvPair]) -> None:
