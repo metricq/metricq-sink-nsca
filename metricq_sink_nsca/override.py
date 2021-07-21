@@ -1,12 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Iterable, List, Optional, Set, TypedDict
 
+from .config_parser import Metric
 from .logging import get_logger
 
 logger = get_logger(__name__)
-
-
-Metric = str
 
 
 class PatternParseError(ValueError):
@@ -95,6 +93,10 @@ class MetricPatternSet:
             raise ValueError("Failed to parse list of metric patterns") from e
 
 
+class OverridesConfig(TypedDict):
+    ignored_metrics: List[Metric]
+
+
 class Overrides:
     """Global overrides.
 
@@ -104,14 +106,20 @@ class Overrides:
     def __init__(self, *, ignored_metrics: MetricPatternSet) -> None:
         self.ignored_metrics = ignored_metrics
 
+    def filter_ignored_metrics(self, metrics: Iterable[Metric]) -> Set[Metric]:
+        return {metric for metric in metrics if metric not in self.ignored_metrics}
+
     @staticmethod
     def empty() -> "Overrides":
         """Create an empty section that specifies no overrides"""
         return Overrides(ignored_metrics=MetricPatternSet.empty())
 
     @staticmethod
-    def from_config(config: Dict[str, Any]) -> "Overrides":
+    def from_config(config: Optional[OverridesConfig]) -> "Overrides":
         """Parsed overrides of an `"overrides"` section from the configuration."""
+        if config is None:
+            return Overrides.empty()
+
         patterns = config.get("ignored_metrics", [])
         try:
             ignored_metrics = MetricPatternSet.from_config(patterns=patterns)

@@ -19,70 +19,28 @@
 # along with metricq.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
-from dataclasses import dataclass
-from dataclasses import fields as dataclass_fields
 from itertools import accumulate
 from math import isnan
 from socket import gethostname
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Set,
-    TypedDict,
-    TypeVar,
-)
+from typing import Dict, Iterable, List, Optional
 
 import metricq
 from metricq import Timedelta, Timestamp
 
-from .check import Check, TvPair
+from metricq_sink_nsca.config_parser import parse_timedelta
+
+from .check import Check, CheckConfig, TvPair
 from .logging import get_logger
-from .override import Metric, Overrides
+from .nsca import Nsca, NscaConfig, NscaReport
+from .override import Overrides, OverridesConfig
 from .report_queue import Report, ReportQueue
-from .state import State
 from .subtask import subtask
 from .version import version as client_version
 
 logger = get_logger(__name__)
 
-
-@dataclass
-class NscaConfig:
-    host: str = "localhost"
-    port: int = 5667
-    config_file: str = "/etc/nsca/send_nsca.cfg"
-    executable: str = "/usr/sbin/send_nsca"
-
-
-@dataclass
-class NscaReport:
-    host: str
-    service: str
-    state: State
-    message: str
-
-
-DurationStr = str
-
-
-class CheckConfig(TypedDict):
-    metrics: List[Metric]
-    warning_above: Optional[float]
-    warning_below: Optional[float]
-    critical_above: Optional[float]
-    critical_below: Optional[float]
-    timeout: Optional[DurationStr]
-    ignore: Optional[List[float]]
-    resend_interval: Optional[DurationStr]
-    transition_debounce_window: Optional[DurationStr]
-    plugins: dict
-
-
 DEFAULT_HOSTNAME = gethostname()
+DEFAULT_RESEND_INTERVAL = Timedelta.from_s(3 * 60)
 
 
 class ReporterSink(metricq.DurableSink):
@@ -92,17 +50,31 @@ class ReporterSink(metricq.DurableSink):
         self._dry_run: bool = dry_run
 
         # these are configured after connecting, see _configure().
-        self._reporting_host: str = None
-        self._nsca_config: Optional[NscaConfig] = None
-        self._checks: Dict[str, Check] = dict()
-        self._check_configs: Dict[str] = dict()
+        self._nsca: Optional[Nsca] = None
+        self._reporting_host: Optional[str] = None
+        self._resend_interval: Timedelta = DEFAULT_RESEND_INTERVAL
         self._overrides: Overrides = Overrides.empty()
+        self._checks: Dict[str, Check] = dict()
         self._has_value_checks: bool = False
-        self._global_resend_interval: Optional[Timedelta] = None
         self._report_queue = ReportQueue()
 
         super().__init__(*args, client_version=client_version, **kwargs)
 
+    @property
+    def nsca(self) -> Nsca:
+        assert (
+            self._nsca is not None
+        ), "ReporterSink.nsca was accessed before sink was configured"
+        return self._nsca
+
+    @property
+    def reporting_host(self) -> str:
+        assert (
+            self._reporting_host is not None
+        ), "ReporterSink.reporting_host was accessed before sink was configured"
+        return self._reporting_host
+
+    # TODO: remove
     def _clear_checks(self):
         if not self._checks:
             return
@@ -115,127 +87,26 @@ class ReporterSink(metricq.DurableSink):
 
         self._checks = dict()
 
-    def _collect_check_metrics(
-        self, name: str, config: dict, overrides: Overrides
-    ) -> Set[Metric]:
-        """Gather a set of all metrics defined for this check.
-
-        Metrics that are contained in :code:`overrides.ignored_metrics` will not be returned.
-        """
-        all_metrics = config.get("metrics", [])
-
-        if not isinstance(all_metrics, list):
-            raise TypeError(f"Check {name!r} must contain a list of metrics")
-
-        if not all_metrics:
-            raise ValueError(f"Check {name!r} does not contain any metrics")
-
-        metrics = {
-            metric for metric in all_metrics if metric not in overrides.ignored_metrics
-        }
-
-        ignored = set(all_metrics) - metrics
-        if ignored:
-            logger.info(
-                "Override in effect for {!r}: {}/{} metric(s) matched a rule and will be ignored",
-                name,
-                len(ignored),
-                len(all_metrics),
-            )
-
-        return set(metrics)
-
-    def _parse_check_from_config(self, name: str, config: CheckConfig) -> Check:
-        T = TypeVar("T")
-
-        def config_get(
-            cfg_key: str, *, default: T, convert_with: Callable[[Any], T] = None
-        ) -> T:
-            value: Optional[T] = config.get(cfg_key)
-            if value is None:
-                return default
-            else:
-                try:
-                    return value if convert_with is None else convert_with(value)
-                except ValueError as e:
-                    raise ValueError(
-                        f'Invalid config key "{cfg_key}"={value}: {e}'
-                    ) from e
-
-        metrics = self._collect_check_metrics(name, config, overrides=self._overrides)
-
-        # extract ranges for warnable and critical values from the config,
-        # each key is optional
-        value_constraints = {
-            c: config[c]
-            for c in (
-                "warning_below",
-                "warning_above",
-                "critical_below",
-                "critical_above",
-                "ignore",
-            )
-            if c in config
-        }
-
-        # the following are all optional configuration items
-        timeout: Optional[Timedelta] = config_get(
-            "timeout", convert_with=Timedelta.from_string, default=None
-        )
-
-        assert (
-            self._global_resend_interval is not None
-        ), "No global resend interval was set. This is a bug."
-        resend_interval: Timedelta = config_get(
-            "resend_interval",
-            convert_with=Timedelta.from_string,
-            default=self._global_resend_interval,
-        )
-        plugins: dict = config_get("plugins", default={})
-        transition_debounce_window = config_get(
-            "transition_debounce_window",
-            convert_with=Timedelta.from_string,
-            default=None,
-        )
-        transition_postprocessing = config_get(
-            "transition_postprocessing", default=None
-        )
-
-        logger.info(
-            f'Setting up check "{name}" with '
-            f"value_contraints={value_constraints!r}, "
-            f"timeout={timeout}, "
-            f"plugins={list(plugins.keys())}, "
-            f"resend_interval={resend_interval}, "
-            f"transition_debounce_window={transition_debounce_window} and "
-            f"transition_postprocessing={transition_postprocessing}"
-        )
-        return Check(
-            name=name,
-            metrics=metrics,
-            report_queue=self._report_queue,
-            value_constraints=value_constraints,
-            resend_interval=resend_interval,
-            timeout=timeout,
-            plugins=plugins,
-            transition_debounce_window=transition_debounce_window,
-            transition_postprocessing=transition_postprocessing,
-        )
-
     def _add_check(self, name: str, config: CheckConfig):
         if not self._checks:
             self._checks = dict()
         logger.info('Adding check "{}"', name)
-        check = self._parse_check_from_config(name, config)
+
+        check = Check.from_config(
+            name,
+            config=config,
+            report_queue=self._report_queue,
+            resend_interval=self._resend_interval,
+            overrides=self._overrides,
+        )
+
         check.start()
         self._checks[name] = check
-        self._check_configs[name] = config
 
     async def _remove_check(self, name: str, timeout: Optional[float]):
         logger.info('Removing check "{}"', name)
         if self._checks:
-            self._check_configs.pop(name)
-            check = self._checks.pop(name, None)
+            check: Optional[Check] = self._checks.pop(name, None)
             if check is not None:
                 try:
                     await asyncio.wait_for(check.stop(), timeout=timeout)
@@ -267,7 +138,7 @@ class ReporterSink(metricq.DurableSink):
 
         to_update = dict()
         for name in to_update_candidate:
-            old_config = self._check_configs[name]
+            old_config = self._checks[name].config
             new_config = updated_config[name]
             if new_config != old_config:
                 to_update[name] = new_config
@@ -306,54 +177,35 @@ class ReporterSink(metricq.DurableSink):
     async def _configure(
         self,
         *,
-        checks,
-        nsca: dict,
-        reporting_host: str = DEFAULT_HOSTNAME,
-        resend_interval: str = "3min",
-        overrides: Optional[dict] = None,
-        **_kwargs,
+        nsca: NscaConfig,
+        checks: Dict[str, CheckConfig],
+        reporting_host: Optional[str] = None,
+        resend_interval: Optional[str] = None,
+        overrides: Optional[OverridesConfig] = None,
+        **_config,
     ) -> None:
-        self._reporting_host = reporting_host
-        self._nsca_config = NscaConfig(
-            **{
-                cfg_key: v
-                for cfg_key, v in nsca.items()
-                # ignore unknown keys in NSCA config
-                if cfg_key in set(f.name for f in dataclass_fields(NscaConfig))
-            }
+        self._nsca = Nsca.from_config(nsca)
+        self._reporting_host = (
+            reporting_host if reporting_host is not None else DEFAULT_HOSTNAME
         )
-
-        if overrides is not None:
-            try:
-                self._overrides = Overrides.from_config(overrides)
-            except (ValueError, TypeError) as e:
-                logger.error("Invalid overrides section in configuration: {}", e)
-                raise
-        else:
-            logger.debug('Configuration did not contain an "overrides" section')
-
-        try:
-            self._global_resend_interval = Timedelta.from_string(resend_interval)
-        except ValueError as e:
-            logger.error(
-                f'Invalid resend interval "{resend_interval}" in configuration: {e}'
-            )
-            raise
+        self._resend_interval = parse_timedelta(
+            resend_interval, default=DEFAULT_RESEND_INTERVAL
+        )
+        self._overrides = Overrides.from_config(overrides)
 
         if not self._checks:
             self._init_checks(checks)
         else:
             await self._update_checks(checks)
 
-        c: Check
         self._has_value_checks = any(
             c._has_value_checks() for c in self._checks.values()
         )
 
         logger.info(
-            f"Configured NSCA reporter sink for host {self._reporting_host} and checks {', '.join(self._checks)!r}"
+            f"Configured NSCA reporter sink for host {self.reporting_host} and checks {', '.join(self._checks)!r}"
         )
-        logger.debug(f"NSCA config: {self._nsca_config!r}")
+        logger.debug(f"NSCA config: {self.nsca!r}")
 
     async def _on_data_chunk(self, metric: str, data_chunk):
         # Fast-path if there are no value checks: do not decode the whole data
@@ -388,72 +240,16 @@ class ReporterSink(metricq.DurableSink):
     async def on_data(self, _metric, _timestamp, _value):
         """Functionality implemented in _on_data_chunk"""
 
-    async def _send_reports(self, *reports: NscaReport):
+    async def _send_reports(self, reports: List[NscaReport]):
         if not reports:
             return
 
-        logger.debug(f"Sending {len(reports)} report(s)")
+        logger.debug("Sending {} report(s)", len(reports))
 
         if self._dry_run:
             return
 
-        report: NscaReport
-        report_blocks = list()
-        for report in reports:
-            message = report.message.replace("\n", "\\n").encode("ascii")
-            max_len = 4096
-            if len(message) >= max_len:
-                SNIP = br"\n...\nSOME METRICS OMITTED"
-                cut = message.rfind(b"\\n", 0, max_len - len(SNIP))
-                message = message[:cut] + SNIP
-            assert len(message) <= max_len
-            block = b";".join(
-                (
-                    report.host.encode("ascii"),
-                    report.service.encode("ascii"),
-                    str(report.state.value).encode("ascii"),
-                    message,
-                )
-            )
-            report_blocks.append(block)
-        nsca: NscaConfig = self._nsca_config
-        proc = await asyncio.create_subprocess_exec(
-            nsca.executable,
-            "-H",
-            nsca.host,
-            "-p",
-            str(nsca.port),
-            "-c",
-            nsca.config_file,
-            "-d",
-            ";",
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-        )
-
-        stdout_data: bytes
-        stdout_data, _stderr_data = await proc.communicate(
-            input=b"\x17".join(report_blocks)
-        )
-        rc = proc.returncode
-        assert rc is not None
-
-        def log_output(log_level_function, msg_bytes):
-            try:
-                msg = msg_bytes.decode("ascii")
-                for line in msg.splitlines():
-                    log_level_function("send_nsca: " + line)
-            except UnicodeError:
-                log_level_function("send_nsca: failed to decode output")
-
-        if rc != 0:
-            logger.error(
-                f"Failed to send reports to NSCA host at {nsca.host}:{nsca.port}: "
-                f"returncode={rc}"
-            )
-            log_output(logger.error, stdout_data)
-        else:
-            log_output(logger.debug, stdout_data)
+        await self.nsca.send(reports)
 
     def _bump_timeout_checks(self, metric: str, last_timestamp: Timestamp) -> None:
         check: Check
@@ -462,18 +258,18 @@ class ReporterSink(metricq.DurableSink):
                 check.bump_timeout_check(metric, last_timestamp)
 
     @subtask
-    async def _send_reports_loop(self):
+    async def _send_reports_loop(self) -> None:
         while True:
             report: Report
             reports = [
                 NscaReport(
-                    host=self._reporting_host,
+                    host=self.reporting_host,
                     service=report.service,
                     state=report.state,
                     message=report.message,
                 )
                 async for report in self._report_queue.batch(
-                    timeout=Timedelta.from_s(5)
+                    timeout=Timedelta.from_s(5.0)
                 )
             ]
-            await self._send_reports(*reports)
+            await self._send_reports(reports)
