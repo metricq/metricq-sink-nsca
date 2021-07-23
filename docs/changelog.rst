@@ -1,6 +1,10 @@
 Changelog
 =========
 
+* :release:`1.8.1 <2021-07-23>` 39
+* :support:`39` Improved log messages to aid debugging in production
+  (see `#38 <https://github.com/metricq/metricq-sink-nsca/issues/38>`_).
+
 * :release:`1.8.0 <2021-06-29>`
 * :feature:`34` Add a way to globally ignore a set of metrics via the :literal:`"overrides"` section in the configuration.
   See :ref:`the documentation<overrides>` for more information.
