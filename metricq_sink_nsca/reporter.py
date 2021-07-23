@@ -392,7 +392,7 @@ class ReporterSink(metricq.DurableSink):
         if not reports:
             return
 
-        logger.debug(f"Sending {len(reports)} report(s)")
+        logger.info("Sending {} NSCA report(s)", len(reports))
 
         if self._dry_run:
             return
