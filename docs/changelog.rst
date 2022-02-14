@@ -1,6 +1,9 @@
 Changelog
 =========
 
+* :release:`1.8.2 <2022-02-14>`
+* :bug:`49` Fixes a bug where reconfiguring a check configuration at runtime did not update the overrides for existing checks.
+
 * :release:`1.8.1 <2021-07-23>` 39
 * :support:`39` Improved log messages to aid debugging in production
   (see `#38 <https://github.com/metricq/metricq-sink-nsca/issues/38>`_).
