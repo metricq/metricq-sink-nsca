@@ -271,7 +271,10 @@ class ReporterSink(metricq.DurableSink):
             new_config = updated_config[name]
             if new_config != old_config:
                 to_update[name] = new_config
-            elif any(metric in self._overrides.ignored_metrics for metric in self._checks[name].metrics()):
+            elif any(
+                metric in self._overrides.ignored_metrics
+                for metric in self._checks[name].metrics()
+            ):
                 to_update[name] = new_config
             else:
                 logger.info("Skipping update of unchanged check {}", name)
@@ -405,7 +408,7 @@ class ReporterSink(metricq.DurableSink):
             message = report.message.replace("\n", "\\n").encode("ascii")
             max_len = 4096
             if len(message) >= max_len:
-                SNIP = br"\n...\nSOME METRICS OMITTED"
+                SNIP = rb"\n...\nSOME METRICS OMITTED"
                 cut = message.rfind(b"\\n", 0, max_len - len(SNIP))
                 message = message[:cut] + SNIP
             assert len(message) <= max_len
