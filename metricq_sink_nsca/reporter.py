@@ -272,6 +272,8 @@ class ReporterSink(metricq.DurableSink):
             if new_config != old_config:
                 to_update[name] = new_config
             else:
+                if any(metric in self._overrides.ignored_metrics for metric in self._checks[name].metrics()):
+                    to_update[name] = new_config
                 logger.info("Skipping update of unchanged check {}", name)
 
         async def remove_and_add(name: str, new_config: CheckConfig):
