@@ -33,7 +33,7 @@ jobs:
           sphinx-build -b html -n -E -d .doctrees docs ${{ env.OUTPUT_PATH }}
 
       - name: Upload generated HTML as build artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           path: ${{ env.OUTPUT_PATH }}
           name: docs
