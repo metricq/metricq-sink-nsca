@@ -39,7 +39,7 @@ jobs:
           name: docs
 
       - name: Deploy generated HTML to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4.2.3
+        uses: JamesIves/github-pages-deploy-action@v4.3.3
         with:
           branch: gh-pages
           folder: ${{ env.OUTPUT_PATH }}
