@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from typing import cast
 
 import pytest
+import pytest_asyncio
 from metricq.types import Timedelta, Timestamp
 
 from metricq_sink_nsca.logging import get_logger
@@ -51,7 +52,7 @@ async def run(timeout_check: TimeoutCheck):
         await asyncio.wait_for(timeout_check.stop(), timeout=1.0)
 
 
-@pytest.fixture(scope="function")
+@pytest_asyncio.fixture(scope="function")
 async def timeout_check(
     timeout,
     callback,

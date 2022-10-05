@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 import click
@@ -58,19 +57,14 @@ def main(metricq_server, token, dry_run):
     try:
         import uvloop
 
-        asyncio.get_event_loop().close()
-        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-
+        uvloop.install()
         logging.info("Using uvloop-based event loop")
     except ImportError:
         logging.debug("Using default event loop")
-
-    loop = asyncio.get_event_loop()
 
     reporter = ReporterSink(
         dry_run=dry_run,
         management_url=metricq_server,
         token=token,
-        event_loop=loop,
     )
     reporter.run(cancel_on_exception=True)
