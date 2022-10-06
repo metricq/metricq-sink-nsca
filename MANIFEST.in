@@ -5,6 +5,8 @@ recursive-include tests *.py
 
 # only useful in a git repo
 exclude .git-blame-ignore-revs
+exclude .dockerignore
+exclude Dockerfile
 
 # Sphinx documentation
 include docs/conf.py
