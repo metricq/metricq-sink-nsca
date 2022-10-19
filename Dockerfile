@@ -16,8 +16,9 @@ RUN pip install --user .
 FROM metricq/metricq-python:v4.2
 
 USER root
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+RUN echo 'deb http://deb.debian.org/debian bullseye-backports main' > /etc/apt/sources.list.d/backports.list \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y -t bullseye-backports\
     nsca-client \
     && rm -rf /var/lib/apt/lists/* 
 
