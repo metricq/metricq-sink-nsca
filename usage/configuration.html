@@ -1,0 +1,685 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Configuration &mdash; MetricQ NSCA Reporter  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Changelog" href="../changelog.html" />
+    <link rel="prev" title="Welcome to the MetricQ NSCA Reporter documentation!" href="../index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> MetricQ NSCA Reporter
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Configuration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#for-the-impatient">For the impatient</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#full-reference">Full reference</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#top-level-configuration">Top-level configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#check-configuration">Check configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#nsca-host-settings">NSCA host settings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#override-configuration">Override configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#plugin-configuration">Plugin configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#duration">Duration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#complete-example">Complete Example</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MetricQ NSCA Reporter</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content style-external-links">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>Configuration</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/usage/configuration.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <section id="configuration">
+<h1>Configuration<a class="headerlink" href="#configuration" title="Permalink to this headline">¶</a></h1>
+<p><strong class="command">metricq_sink_nsca</strong> retrieves its configuration over the MetricQ network in form of a JSON object.
+The configuration defines a set of checks and specifies the host to which results of these check results should be sent.</p>
+<section id="for-the-impatient">
+<h2>For the impatient<a class="headerlink" href="#for-the-impatient" title="Permalink to this headline">¶</a></h2>
+<p>A minimum working configuration looks like this:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;nsca&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;host&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nsca.example.org&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;checks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;bar&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;metrics&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">                </span><span class="s2">&quot;bar.1&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;bar.2&quot;</span>
+<span class="w">            </span><span class="p">],</span>
+<span class="w">            </span><span class="nt">&quot;warning_above&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">10.0</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;critical_above&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">15.0</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;timeout&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1min&quot;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>You tell it where to send the check results to (<code class="code docutils literal notranslate"><span class="pre">&quot;nsca.host&quot;</span></code>)
+and then define for each check a list of metrics whose values are checked for abnormal values,
+as given by <code class="docutils literal notranslate"><span class="pre">{warning,critical}_above</span></code>.
+Checks need to be configured as passive checks on the host side,
+otherwise reports will be dropped silently by the host.</p>
+</section>
+<section id="full-reference">
+<h2>Full reference<a class="headerlink" href="#full-reference" title="Permalink to this headline">¶</a></h2>
+<section id="top-level-configuration">
+<h3>Top-level configuration<a class="headerlink" href="#top-level-configuration" title="Permalink to this headline">¶</a></h3>
+<dl class="simple">
+<dt><code class="code docutils literal notranslate"><span class="pre">nsca</span></code></dt><dd><p>A dictionary of <a class="reference internal" href="#nsca-host-settings"><span class="std std-ref">NSCA host settings</span></a>.</p>
+</dd>
+</dl>
+<dl id="checks">
+<dt><code class="code docutils literal notranslate"><span class="pre">checks</span></code></dt><dd><p>A dictionary of <a class="reference internal" href="#check-configuration"><span class="std std-ref">check configurations</span></a> by name.</p>
+<dl>
+<dt>Example</dt><dd><p>Suppose you have configured a passive check called <code class="docutils literal notranslate"><span class="pre">foo</span></code> in Centreon/Nagios
+and want to be alerted when values of either of the metrics <code class="docutils literal notranslate"><span class="pre">foo.bar</span></code> or <code class="docutils literal notranslate"><span class="pre">foo.baz</span></code>
+drop below a threshold.
+A possible configuration looks like this:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;nsca&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;host&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nsca.example.org&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;checks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;foo&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;metrics&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">                </span><span class="s2">&quot;foo.bar&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;foo.baz&quot;</span>
+<span class="w">            </span><span class="p">],</span>
+<span class="w">            </span><span class="nt">&quot;warning_below&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">10.0</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;critical_below&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">5.0</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</dd>
+<dt><code class="code docutils literal notranslate"><span class="pre">reporting_host</span></code></dt><dd><p>Name of the host for which check results are reported, as configured in Nagios/Centreon.</p>
+<dl class="simple">
+<dt>Default:</dt><dd><p>The current hostname returned by <em class="manpage"><a class="manpage reference external" href="https://man7.org/linux/man-pages/man2/gethostname.2.html">gethostname(2)</a></em>.</p>
+</dd>
+</dl>
+</dd>
+<dt><code class="code docutils literal notranslate"><span class="pre">resend_interval</span></code></dt><dd><p id="global-resend-interval">Global default resend interval (see <a class="reference internal" href="#resend-interval"><span class="std std-ref">Check configuration/resend_interval</span></a>).</p>
+<dl class="simple">
+<dt>Default</dt><dd><p><code class="docutils literal notranslate"><span class="pre">&quot;3min&quot;</span></code></p>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl id="overrides">
+<dt><code class="code docutils literal notranslate"><span class="pre">overrides</span></code></dt><dd><p>An object of global overrides that affect operation of all <a class="reference internal" href="#checks"><span class="std std-ref">checks</span></a>.
+See <a class="reference internal" href="#override-configuration"><span class="std std-ref">override configuration</span></a>.</p>
+<dl class="simple">
+<dt>Default</dt><dd><p>If omitted, no overrides are applied.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+<section id="check-configuration">
+<span id="id1"></span><h3>Check configuration<a class="headerlink" href="#check-configuration" title="Permalink to this headline">¶</a></h3>
+<p>A single check monitors a set of metrics for abnormal behavior.
+It continuously consumes new data points for these metrics
+and reports and <cite>overall state</cite>: if values of a single metric exceed their <a class="reference internal" href="#abnormal-ranges"><span class="std std-ref">allowed range</span></a>
+or there are no new values after <a class="reference internal" href="#timeout"><span class="std std-ref">a certain time</span></a>
+a state of <code class="docutils literal notranslate"><span class="pre">WARNING</span></code> or <code class="docutils literal notranslate"><span class="pre">CRITICAL</span></code> is reported.</p>
+<p id="check-metrics"><code class="code docutils literal notranslate"><span class="pre">metrics</span></code> (list of strings)</p>
+<blockquote>
+<div><p>A list of metrics that should be monitored.</p>
+<p>This list is <strong>mandatory</strong> and required to be <em>non-empty</em>.</p>
+</div></blockquote>
+<dl>
+<dt><code class="code docutils literal notranslate"><span class="pre">warning_above</span></code>, <code class="code docutils literal notranslate"><span class="pre">warning_below</span></code>, <code class="code docutils literal notranslate"><span class="pre">critical_above</span></code>, <code class="code docutils literal notranslate"><span class="pre">critical_below</span></code> (number)</dt><dd><p id="abnormal-ranges">Range of value which should trigger a <code class="docutils literal notranslate"><span class="pre">WARNING</span></code> (resp. <code class="docutils literal notranslate"><span class="pre">CRITICAL</span></code>) status report to be sent.
+We call the intervals <span class="math notranslate nohighlight">\([-∞, \mathtt{warning\_below}) \cup (\mathtt{warning\_above}, ∞]\)</span> the <em>warning range</em>;
+values within that range trigger a <code class="docutils literal notranslate"><span class="pre">WARNING</span></code>.
+The <em>critical range</em> is defined similarly.</p>
+<p>We require the following, otherwise the configuration is rejected:</p>
+<div class="math notranslate nohighlight">
+\[\mathtt{critical\_below}
+    ≤ \mathtt{warning\_below}
+    &lt; \mathtt{warning\_above}
+    ≤ \mathtt{critical\_above}\]</div>
+<p>A <code class="docutils literal notranslate"><span class="pre">WARNING</span></code> report is sent if the value of a metric drops below <code class="docutils literal notranslate"><span class="pre">warning_below</span></code>,
+a <code class="docutils literal notranslate"><span class="pre">CRITICAL</span></code> report is sent if it drops further below <code class="docutils literal notranslate"><span class="pre">critical_below</span></code>.
+Metrics exceeding <code class="docutils literal notranslate"><span class="pre">warning_above</span></code> or <code class="docutils literal notranslate"><span class="pre">critical_above</span></code> similarly trigger reports.</p>
+<dl>
+<dt>Defaults</dt><dd><ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(-∞\)</span> (<code class="code docutils literal notranslate"><span class="pre">{warning,critical}_below</span></code>)</p></li>
+<li><p><span class="math notranslate nohighlight">\(∞\)</span>  (<code class="code docutils literal notranslate"><span class="pre">{warning,critical}_above</span></code>)</p></li>
+</ul>
+<p>You cannot put <span class="math notranslate nohighlight">\(±∞\)</span> directly into the check configuration.
+Since they are the default anyway, simply omit the relevant key if necessary.</p>
+</dd>
+<dt>Important</dt><dd><p>Setting any of these values forces incoming messages to be decoded and parsed,
+which adds significant overhead for high-volume metrics.
+Leave all values unset to disable packet processing and only check for timeouts.</p>
+</dd>
+<dt>Example</dt><dd><p>An example check configuration with all ranges specified:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;checks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;foo&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;metrics&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="s2">&quot;foo.bar&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;foo.baz&quot;</span><span class="w"> </span><span class="p">],</span>
+<span class="w">            </span><span class="nt">&quot;critical_below&quot;</span><span class="p">:</span><span class="w">   </span><span class="mf">5.0</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;warning_below&quot;</span><span class="p">:</span><span class="w">   </span><span class="mf">10.0</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;warning_above&quot;</span><span class="p">:</span><span class="w">   </span><span class="mf">95.0</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;critical_above&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">100.0</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</dd>
+<dt><code class="code docutils literal notranslate"><span class="pre">timeout</span></code> (<a class="reference internal" href="#duration"><span class="std std-ref">duration</span></a>)</dt><dd><p id="timeout">Send check result of severity <code class="docutils literal notranslate"><span class="pre">WARNING</span></code> if values arrive apart more than the specified period.
+This monitors two kinds of failure:</p>
+<ul class="simple">
+<li><p>The network is fully operational, but two consecutive data points for a metric differ by more than <code class="code docutils literal notranslate"><span class="pre">timeout</span></code> in their timestamps.
+This might indicate that the source for these metrics is not fully operational.</p></li>
+<li><p><strong class="command">metricq_sink_nsca</strong> does not receive data points for these metrics for more than the specified duration,
+measured against the local system clock.
+This might happen if a source has crashed, has lost its connection to the network
+or there is another issue along the way that prevents clients from consuming new value for these metrics.</p></li>
+</ul>
+<dl>
+<dt>Default</dt><dd><p>Not set; no timeout checks are performed.</p>
+</dd>
+<dt>Note</dt><dd><p>Timeout checks can be enabled independently from <a class="reference internal" href="#abnormal-ranges"><span class="std std-ref">value checks</span></a>.
+They do not require incoming messages to be parsed and can safely be enabled for high-volume metrics
+without incurring much overhead.</p>
+</dd>
+<dt>Example</dt><dd><p>Make sure that <code class="docutils literal notranslate"><span class="pre">foo.bar</span></code> consistently produces values:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;checks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;foo&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;metrics&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;foo.bar&quot;</span><span class="p">],</span>
+<span class="w">            </span><span class="nt">&quot;timeout&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1min&quot;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</dd>
+<dt><code class="code docutils literal notranslate"><span class="pre">ignore</span></code> (list of numbers)</dt><dd><p>A list of values that are never considered to generate <code class="docutils literal notranslate"><span class="pre">WARNING</span></code> or <code class="docutils literal notranslate"><span class="pre">CRITICAL</span></code> reports.</p>
+<p>This is intended to be used for metrics that yield spurious, but fixed values that should be ignored,
+even if they are within an otherwise abnormal range.
+An example would be a faulty measuring device which produces the value <code class="docutils literal notranslate"><span class="pre">0.0</span></code> on encountering in an internal error,
+but where <code class="docutils literal notranslate"><span class="pre">warning_below</span> <span class="pre">=</span> <span class="pre">5.0</span></code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Use with care</strong>.
+The implementation essentially only performs a floating-point equality test to filter values.</p>
+<p>If this sounds like a bad idea to you, you are probably right.
+Trust me, this is here because some source cannot be fixed easily.</p>
+</div>
+<dl>
+<dt>Example</dt><dd><p>A source computing a <a class="reference external" href="https://en.wikipedia.org/wiki/Power_factor">Power factor</a>
+for an AC electrical power system reports a metric <code class="docutils literal notranslate"><span class="pre">ac_system.power_factor</span></code>.
+If the power factor is too low, a warning should be generated.
+It might be that the source calculates a power factor of <code class="docutils literal notranslate"><span class="pre">0.0</span></code> on low draw.
+Since a low power factor on low draw might not be considered a problem,
+ignore the value <code class="docutils literal notranslate"><span class="pre">0.0</span></code>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;checks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;low-draw&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;metrics&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ac_system.power_factor&quot;</span><span class="p">],</span>
+<span class="w">            </span><span class="nt">&quot;warning_below&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.8</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;ignore&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">0.0</span><span class="p">]</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</dd>
+<dt><code class="code docutils literal notranslate"><span class="pre">resend_interval</span></code> (<a class="reference internal" href="#duration"><span class="std std-ref">duration</span></a>)</dt><dd><p id="resend-interval">Period of time after which the current state of this check is sent again to the server, even though it might not have changed.
+This is necessary since passive checks are considered to be in an <code class="docutils literal notranslate"><span class="pre">UNKNOWN</span></code> state by Centreon/Nagios
+if they have not sent a report for a certain time.</p>
+<dl class="simple">
+<dt>Default</dt><dd><p>Inherited from the <a class="reference internal" href="#global-resend-interval"><span class="std std-ref">global resend interval</span></a>.</p>
+</dd>
+</dl>
+</dd>
+<dt><code class="code docutils literal notranslate"><span class="pre">transition_debounce_window</span></code> (<a class="reference internal" href="#duration"><span class="std std-ref">duration</span></a>)</dt><dd><p>If this value is set, <strong class="command">metricq_sink_nsca</strong> tries to reduce the number of spurious <code class="docutils literal notranslate"><span class="pre">WARNING</span></code> or <code class="docutils literal notranslate"><span class="pre">CRITICAL</span></code> reports.
+We call this process <em>“transition debouncing”</em>.</p>
+<p>If you are experiencing state transitions to <code class="docutils literal notranslate"><span class="pre">WARNING</span></code> or <code class="docutils literal notranslate"><span class="pre">CRITICAL</span></code>
+that only last <span class="math notranslate nohighlight">\(x\)</span> seconds and want to suppress them, set this value to at least <span class="math notranslate nohighlight">\(2x\)</span> seconds.</p>
+<p>For each metric, a history of its state transitions is kept.
+This configures how far into the past state transitions are kept in each history.
+If the majority of recent state transitions indicate an abnormal state, a report is sent.
+Otherwise it is suppressed.</p>
+<dl class="simple">
+<dt>Default</dt><dd><p>Not set; transitions debouncing is disabled.</p>
+</dd>
+<dt>TODO</dt><dd><p>This should be called <code class="docutils literal notranslate"><span class="pre">transition_history_window</span></code>.
+Bug me about it in an issue.</p>
+</dd>
+</dl>
+</dd>
+<dt><code class="code docutils literal notranslate"><span class="pre">plugins</span></code></dt><dd><p>A dictionary of <a class="reference internal" href="#plugin-configuration"><span class="std std-ref">plugin configurations</span></a>.
+Keys in this dictionary must match the regex <code class="docutils literal notranslate"><span class="pre">[a-z_]+</span></code>.</p>
+</dd>
+</dl>
+</section>
+<section id="nsca-host-settings">
+<h3>NSCA host settings<a class="headerlink" href="#nsca-host-settings" title="Permalink to this headline">¶</a></h3>
+<p>These settings tell the reporter where it should send its check results and how that host is configured.</p>
+<dl>
+<dt><code class="code docutils literal notranslate"><span class="pre">host</span></code> (<cite>string</cite>)</dt><dd><p>Address of the NSCA daemon to which check results are sent.
+See <code class="code docutils literal notranslate"><span class="pre">-H</span></code> flag of <code class="code docutils literal notranslate"><span class="pre">send_nsca</span></code>.</p>
+<dl class="simple">
+<dt>Default:</dt><dd><p><code class="docutils literal notranslate"><span class="pre">&quot;localhost&quot;</span></code></p>
+</dd>
+</dl>
+</dd>
+<dt><code class="code docutils literal notranslate"><span class="pre">port</span></code> (<cite>integer</cite>)</dt><dd><p>Port of the NSCA daemon to which check results are sent.
+See <code class="code docutils literal notranslate"><span class="pre">-p</span></code> flag of <code class="code docutils literal notranslate"><span class="pre">send_nsca</span></code>.</p>
+<dl class="simple">
+<dt>Default:</dt><dd><p><code class="docutils literal notranslate"><span class="pre">5667</span></code></p>
+</dd>
+</dl>
+</dd>
+<dt><code class="code docutils literal notranslate"><span class="pre">executable</span></code> (<cite>string</cite>)</dt><dd><p>Path to <code class="code docutils literal notranslate"><span class="pre">send_nsca</span></code> executable to use for sending check results.</p>
+<dl class="simple">
+<dt>Default:</dt><dd><p><code class="docutils literal notranslate"><span class="pre">&quot;/usr/sbin/send_nsca&quot;</span></code></p>
+</dd>
+</dl>
+</dd>
+<dt><code class="code docutils literal notranslate"><span class="pre">config_file</span></code> (<cite>string</cite>)</dt><dd><p>Path to <code class="code docutils literal notranslate"><span class="pre">send_nsca</span></code> configuration file.
+See <code class="code docutils literal notranslate"><span class="pre">-c</span></code> flag of <code class="code docutils literal notranslate"><span class="pre">send_nsca</span></code></p>
+<dl class="simple">
+<dt>Default:</dt><dd><p><code class="docutils literal notranslate"><span class="pre">&quot;/etc/nsca/send_nsca.cfg&quot;</span></code></p>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+<section id="override-configuration">
+<span id="id2"></span><h3>Override configuration<a class="headerlink" href="#override-configuration" title="Permalink to this headline">¶</a></h3>
+<p>Overrides should be used to temporarily reconfigure a checker instance,
+e.g. when a planned maintainance affects the availability of certain metrics.</p>
+<p>The override configuration contains the following keys to define overrides:</p>
+<ul>
+<li><dl>
+<dt><code class="code docutils literal notranslate"><span class="pre">ignored_metrics</span></code> (list of metric patterns)</dt><dd><p>Each item in this list is a <a class="reference internal" href="#metric-pattern"><span class="std std-ref">metric pattern</span></a> that matches either one or multiple metrics.
+If a check defines a <a class="reference internal" href="#check-metrics"><span class="std std-ref">metric</span></a> that matches
+<cite>at least one</cite> of these patterns, this metric is completely ignored by that check.
+In particular, neither <a class="reference internal" href="#abnormal-ranges"><span class="std std-ref">abnormal values</span></a> nor
+<a class="reference internal" href="#timeout"><span class="std std-ref">timeout conditions</span></a> will trigger any reports to be sent.</p>
+<p>Put a metric on this list if you want to temporarily exclude it from all <a class="reference internal" href="#checks"><span class="std std-ref">checks</span></a>,
+without deleting it from the actual <a class="reference internal" href="#check-configuration"><span class="std std-ref">check configuration</span></a>.
+This prevents misconfigurations where a metric had to be temporarily ignored,
+but later was not added back to all checks from which it was removed.</p>
+<p id="metric-pattern">A <cite>metric pattern</cite> can be one the following:</p>
+<dl>
+<dt>An <cite>exact match</cite></dt><dd><p>The full name of a metric.
+<cite>Exactly</cite> this metric will be ignored.</p>
+</dd>
+<dt>A <cite>prefix match</cite></dt><dd><p>A metric name consists of <cite>components</cite> separated by <code class="docutils literal notranslate"><span class="pre">.</span></code>.
+All metrics that share a common prefix of components can be matched at once.
+Write the prefix,
+followed by the <cite>wildcard</cite> component <code class="docutils literal notranslate"><span class="pre">*</span></code>.</p>
+<dl class="simple">
+<dt>Example</dt><dd><p><code class="docutils literal notranslate"><span class="pre">foo.*</span></code> matches <code class="docutils literal notranslate"><span class="pre">foo.bar.baz</span></code>,
+<code class="docutils literal notranslate"><span class="pre">foo.qux</span></code> and any other metric
+whose first component is <code class="docutils literal notranslate"><span class="pre">foo</span></code>.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The exact pattern syntax might be extended in the future in an incompatible way.
+In particular, it is currently neither possible to match <cite>parts</cite> of components
+(i.e. no <code class="docutils literal notranslate"><span class="pre">foo.b*r</span></code>) nor non-prefix components (no <code class="docutils literal notranslate"><span class="pre">foo.*.baz</span></code>).
+This might change in the future.</p>
+<p>Overrides should be temporary;
+before upgrading to a new feature release, check that your overrides are still valid.</p>
+</div>
+<dl>
+<dt>Default</dt><dd><p>If omitted, no metrics will be ignored for any check.</p>
+</dd>
+<dt>Example</dt><dd><p>We can use an <cite>exact match</cite> to ignore exactly one metric:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;overrides&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;ignored_metrics&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">            </span><span class="s2">&quot;waldo.location.latitude&quot;</span><span class="p">,</span>
+<span class="w">            </span><span class="s2">&quot;waldo.location.longitude&quot;</span>
+<span class="w">        </span><span class="p">]</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;checks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;TRACK_WALDO&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;metrics&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">                </span><span class="s2">&quot;waldo.location.latitude&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;waldo.location.longitude&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;waldo.hidden.duration&quot;</span>
+<span class="w">            </span><span class="p">],</span>
+<span class="w">            </span><span class="nt">&quot;timeout&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;5min&quot;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In the above example, only <code class="docutils literal notranslate"><span class="pre">waldo.hidden.duration</span></code>
+is checked by <code class="docutils literal notranslate"><span class="pre">TRACK_WALDO</span></code> for timeout conditions,
+both <code class="docutils literal notranslate"><span class="pre">waldo.location.latitude</span></code> and <code class="docutils literal notranslate"><span class="pre">waldo.location.longitude</span></code>
+are ignored.</p>
+</dd>
+<dt>Example</dt><dd><p>To easily match multiple metrics, we can use a <cite>prefix match</cite>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;overrides&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;ignored_metrics&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">            </span><span class="s2">&quot;santa.*&quot;</span>
+<span class="w">        </span><span class="p">]</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;checks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;LATITUDE_VALID&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;metrics&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">                </span><span class="s2">&quot;waldo.location.latitude&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;santa.location.latitude&quot;</span><span class="p">,</span>
+<span class="w">            </span><span class="p">],</span>
+<span class="w">            </span><span class="nt">&quot;critical_above&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">90.0</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;critical_below&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">-90.0</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">        </span><span class="nt">&quot;LONGITUDE_VALID&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;metrics&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">                </span><span class="s2">&quot;waldo.location.longitude&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;santa.location.longitude&quot;</span><span class="p">,</span>
+<span class="w">            </span><span class="p">],</span>
+<span class="w">            </span><span class="nt">&quot;critical_above&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">180.0</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;critical_below&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">-180.0</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In the above example, neither <code class="docutils literal notranslate"><span class="pre">santa.location.latitude</span></code>
+nor <code class="docutils literal notranslate"><span class="pre">santa.location.longitude</span></code> are checked by <code class="docutils literal notranslate"><span class="pre">LATITUDE_VALID</span></code>
+and <code class="docutils literal notranslate"><span class="pre">LONGITUDE_VALID</span></code>, respectively.
+In fact, any metric that had <code class="docutils literal notranslate"><span class="pre">santa</span></code> as its first component would be ignored.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</li>
+</ul>
+</section>
+<section id="plugin-configuration">
+<h3>Plugin configuration<a class="headerlink" href="#plugin-configuration" title="Permalink to this headline">¶</a></h3>
+<dl>
+<dt><code class="code docutils literal notranslate"><span class="pre">file</span></code> (string)</dt><dd><p>File system path to plugin implementation (a <cite>.py</cite> file).</p>
+<p>This key is <strong>mandatory</strong>.
+Plugin configurations without it are rejected.</p>
+</dd>
+<dt><code class="code docutils literal notranslate"><span class="pre">config</span></code> (dictionary)</dt><dd><p>An arbitrary JSON object containing a plugin-specific configuration.</p>
+</dd>
+</dl>
+</section>
+<section id="duration">
+<h3>Duration<a class="headerlink" href="#duration" title="Permalink to this headline">¶</a></h3>
+<p>All durations in this configuration are <em>strings</em> in the form of <code class="samp docutils literal notranslate"><span class="pre">&quot;</span><em><span class="pre">value</span></em> <span class="pre">[</span><em><span class="pre">unit</span></em><span class="pre">]&quot;</span></code>.
+The <code class="samp docutils literal notranslate"><em><span class="pre">value</span></em></code> is an integer or (decimal) floating point literal, the unit is one of</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">d</span></code>/<code class="docutils literal notranslate"><span class="pre">days</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">h</span></code>/<code class="docutils literal notranslate"><span class="pre">hours</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">min</span></code>/<code class="docutils literal notranslate"><span class="pre">minutes</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">s</span></code>/<code class="docutils literal notranslate"><span class="pre">seconds</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ms</span></code>/<code class="docutils literal notranslate"><span class="pre">milliseconds</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">us</span></code>/<code class="docutils literal notranslate"><span class="pre">μs</span></code>/<code class="docutils literal notranslate"><span class="pre">microseconds</span></code>,</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ns</span></code>/<code class="docutils literal notranslate"><span class="pre">nanoseconds</span></code></p></li>
+</ul>
+<p>If the unit is not specified, the value is interpreted as a <em>number of seconds</em>.</p>
+<dl class="simple">
+<dt>Examples</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;5s&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;5&quot;</span></code> (5 seconds)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;42</span> <span class="pre">milliseconds&quot;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;1.5</span> <span class="pre">days&quot;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</section>
+</section>
+<section id="complete-example">
+<h2>Complete Example<a class="headerlink" href="#complete-example" title="Permalink to this headline">¶</a></h2>
+<p>An example with all possible options set is given below:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;$schema&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;../../config.schema.json&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;nsca&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;host&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nsca.example.com&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;port&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5667</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;executable&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/opt/nsca/bin/send_nsca&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;config_file&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/opt/nsca/etc/send_nsca.cfg&quot;</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;overrides&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;ignored_metrics&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">            </span><span class="s2">&quot;foo.qux.*&quot;</span>
+<span class="w">        </span><span class="p">]</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;reporting_host&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;foo&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;resend_interval&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2min&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;checks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;foo&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;metrics&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">                </span><span class="s2">&quot;foo.bar&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;foo.baz&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;foo.qux.ignored1&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">&quot;foo.qux.ignored2&quot;</span>
+<span class="w">            </span><span class="p">],</span>
+<span class="w">            </span><span class="nt">&quot;critical_below&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">5.0</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;warning_below&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">10.0</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;warning_above&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">95.0</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;critical_above&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">100.0</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;timeout&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;10min&quot;</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;ignore&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">                </span><span class="mf">0.0</span>
+<span class="w">            </span><span class="p">],</span>
+<span class="w">            </span><span class="nt">&quot;resend_interval&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;5min&quot;</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;transition_debounce_window&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1min&quot;</span><span class="p">,</span>
+<span class="w">            </span><span class="nt">&quot;plugins&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="nt">&quot;foo_plugin&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="nt">&quot;file&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/opt/metricq_sink_nsca/plugins/foo_plugin.py&quot;</span><span class="p">,</span>
+<span class="w">                    </span><span class="nt">&quot;config&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="nt">&quot;zorgs&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
+<span class="w">                        </span><span class="nt">&quot;blargles&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ahhh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;ouggh&quot;</span><span class="p">]</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../changelog.html" class="btn btn-neutral float-right" title="Changelog" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="../index.html" class="btn btn-neutral float-left" title="Welcome to the MetricQ NSCA Reporter documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, TU Dresden
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
