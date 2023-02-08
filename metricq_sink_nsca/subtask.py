@@ -100,7 +100,9 @@ class SubtaskProxy(Generic[Class]):
         try:
             assert self.attrname is not None
             task = instance.__dict__.get(self.attrname, _NOT_FOUND)
-        except AttributeError:  # not all objects have __dict__ (e.g. class defines slots)
+        except (
+            AttributeError
+        ):  # not all objects have __dict__ (e.g. class defines slots)
             msg = (
                 f"No '__dict__' attribute on {cls_name!r} "
                 f"instance to save {self.attrname!r} subtask."
