@@ -82,7 +82,7 @@ def test_history_length(ticker, expected_history_items):
 
     assert history.epoch == epoch
 
-    for (timestamp, _) in zip(ticker, range(expected_history_items)):
+    for timestamp, _ in zip(ticker, range(expected_history_items)):
         history.insert(timestamp, State.OK)
 
     logger.info(f"history={history!r}")

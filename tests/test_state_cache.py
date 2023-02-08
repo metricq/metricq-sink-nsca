@@ -52,7 +52,7 @@ class Context:
 )
 def test_state_cache(value_check, soft_fail_cache, metric, ticker, contexts):
     soft_fail_cache.update_state(metric, next(ticker), State.OK)
-    for (timestamp, context) in zip(ticker, contexts):
+    for timestamp, context in zip(ticker, contexts):
         state = value_check.get_state(context.value)
 
         soft_fail_cache.update_state(metric, timestamp, state)
