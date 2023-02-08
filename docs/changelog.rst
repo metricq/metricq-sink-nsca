@@ -1,6 +1,12 @@
 Changelog
 =========
 
+* :release:`1.8.3 <2023-02-08>`
+* :feature: Adds Dockerfile and automated build for docker images available on Docker Hub
+* :support:`-` Update :code:`metricq` dependency to 4.0.0
+* :support:`-` Update :code:`python` dependency to 3.10
+
+
 * :release:`1.8.2 <2022-02-14>`
 * :bug:`49` Fixes a bug where reconfiguring a check configuration at runtime did not update the overrides for existing checks.
 
