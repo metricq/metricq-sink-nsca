@@ -2,6 +2,7 @@ import logging
 
 import click
 import click_log
+from metricq.cli import metricq_command
 
 from .logging import get_logger
 from .reporter import ReporterSink
@@ -48,23 +49,21 @@ root_logger.handlers[0].formatter = logging.Formatter(
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
-@click.command(context_settings=CONTEXT_SETTINGS)
-@click.option("--metricq-server", "-s", default="amqp://localhost/")
-@click.option("--token", "-t", default="sink-nsca")
+@metricq_command(default_token="sink-nsca", client_version=None)
 @click.option("--dry-run", "-n", is_flag=True)
 @verbosity_option(root_logger)
-def main(metricq_server, token, dry_run):
-    try:
-        import uvloop
+def main(server, token, dry_run):
+	try:
+		import uvloop
 
-        uvloop.install()
-        logging.info("Using uvloop-based event loop")
-    except ImportError:
-        logging.debug("Using default event loop")
+		uvloop.install()
+		logging.info("Using uvloop-based event loop")
+	except ImportError:
+		logging.debug("Using default event loop")
 
-    reporter = ReporterSink(
-        dry_run=dry_run,
-        management_url=metricq_server,
-        token=token,
-    )
-    reporter.run(cancel_on_exception=True)
+	reporter = ReporterSink(
+		dry_run=dry_run,
+		management_url=server,
+		token=token,
+	)
+	reporter.run(cancel_on_exception=True)
