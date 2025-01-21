@@ -1,4 +1,4 @@
-FROM ghcr.io/metricq/metricq-python:v5.2 AS builder
+FROM ghcr.io/metricq/metricq-python:v5.4 AS builder
 LABEL maintainer="mario.bielert@tu-dresden.de"
 
 USER root
