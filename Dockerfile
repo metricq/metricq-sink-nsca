@@ -1,4 +1,4 @@
-FROM ghcr.io/metricq/metricq-python:v4.2 AS builder
+FROM ghcr.io/metricq/metricq-python:v5.4 AS builder
 LABEL maintainer="mario.bielert@tu-dresden.de"
 
 USER root
@@ -13,7 +13,7 @@ COPY --chown=metricq:metricq . /home/metricq/sink-nsca
 WORKDIR /home/metricq/sink-nsca
 RUN pip install --user .
 
-FROM ghcr.io/metricq/metricq-python:v4.2
+FROM ghcr.io/metricq/metricq-python:v5.4
 
 USER root
 RUN echo 'deb http://deb.debian.org/debian bullseye-backports main' > /etc/apt/sources.list.d/backports.list \

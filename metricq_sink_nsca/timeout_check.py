@@ -22,7 +22,7 @@ import asyncio
 from asyncio import CancelledError, Event
 from typing import Optional, Protocol
 
-from metricq.types import Timedelta, Timestamp
+from metricq import Timedelta, Timestamp
 
 from .logging import get_logger
 from .subtask import subtask
