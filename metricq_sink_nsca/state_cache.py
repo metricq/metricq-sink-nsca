@@ -25,7 +25,7 @@ from dataclasses import field as dataclass_field
 from dataclasses import replace as dataclass_replace
 from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple, Union
 
-from metricq.types import Timedelta, Timestamp
+from metricq import Timedelta, Timestamp
 
 from .logging import get_logger
 from .state import State
