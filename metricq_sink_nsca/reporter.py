@@ -299,7 +299,16 @@ class ReporterSink(metricq.DurableSink):
             )
         )
         logger.info(f"Subscribing to {len(metrics)} metric(s)...")
-        await self.subscribe(metrics=metrics)
+        # Keep each RPC below the default timeout even for large subscriptions.
+        # Await each batch so subsequent calls reuse the first batch's data queue.
+        metric_list = sorted(metrics)
+        batch_size = 500
+        for offset in range(0, len(metric_list), batch_size):
+            batch = metric_list[offset : offset + batch_size]
+            await self.subscribe(metrics=batch)
+            logger.info(
+                "Subscribed to {}/{} metric(s)", offset + len(batch), len(metrics)
+            )
         logger.info("Successfully subscribed to all required metrics")
 
         self._send_reports_loop.start()
