@@ -22,7 +22,7 @@ from asyncio import FIRST_COMPLETED, Queue, Task, create_task, sleep, wait
 from dataclasses import dataclass
 from typing import AsyncIterator, Optional
 
-from metricq.types import Timedelta
+from metricq import Timedelta
 
 from .state import State
 

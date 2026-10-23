@@ -4,7 +4,7 @@ from typing import cast
 
 import pytest
 import pytest_asyncio
-from metricq.types import Timedelta, Timestamp
+from metricq import Timedelta, Timestamp
 
 from metricq_sink_nsca.logging import get_logger
 from metricq_sink_nsca.timeout_check import TimeoutCallback, TimeoutCheck

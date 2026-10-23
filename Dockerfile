@@ -1,5 +1,9 @@
-FROM ghcr.io/metricq/metricq-python:v4.2 AS builder
+FROM python:3.11-slim-bookworm AS base
 LABEL maintainer="mario.bielert@tu-dresden.de"
+
+RUN useradd -m metricq
+
+FROM base AS builder
 
 USER root
 RUN apt-get update \
@@ -13,12 +17,11 @@ COPY --chown=metricq:metricq . /home/metricq/sink-nsca
 WORKDIR /home/metricq/sink-nsca
 RUN pip install --user .
 
-FROM ghcr.io/metricq/metricq-python:v4.2
+FROM base
 
 USER root
-RUN echo 'deb http://deb.debian.org/debian bullseye-backports main' > /etc/apt/sources.list.d/backports.list \
-    && apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y -t bullseye-backports\
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     nsca-client \
     && rm -rf /var/lib/apt/lists/* 
 

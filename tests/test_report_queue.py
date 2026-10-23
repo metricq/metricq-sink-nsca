@@ -1,7 +1,7 @@
 from typing import Iterator, List, TypeVar
 
 import pytest
-from metricq.types import Timedelta
+from metricq import Timedelta
 
 from metricq_sink_nsca.report_queue import Report, ReportQueue
 from metricq_sink_nsca.state import State

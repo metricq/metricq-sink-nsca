@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from logging import getLogger
 
 import pytest
-from metricq.types import Timedelta
+from metricq import Timedelta
 
 from metricq_sink_nsca.state import State
 from metricq_sink_nsca.state_cache import SoftFail, StateCache

@@ -1,7 +1,7 @@
 import asyncio
 
 import pytest
-from metricq.types import Timedelta, Timestamp
+from metricq import Timedelta, Timestamp
 
 
 class Ticker:

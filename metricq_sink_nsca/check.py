@@ -21,7 +21,7 @@
 from asyncio import CancelledError, gather, sleep
 from typing import Dict, Iterable, NamedTuple, Optional, Set
 
-from metricq.types import Timedelta, Timestamp
+from metricq import Timedelta, Timestamp
 
 from .logging import get_logger
 from .plugin import Plugin

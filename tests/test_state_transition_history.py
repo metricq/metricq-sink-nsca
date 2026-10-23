@@ -2,7 +2,7 @@ import logging
 from logging import getLogger
 
 import pytest
-from metricq.types import Timedelta, Timestamp
+from metricq import Timedelta, Timestamp
 
 from metricq_sink_nsca.state import State
 from metricq_sink_nsca.state_cache import StateTransitionHistory
